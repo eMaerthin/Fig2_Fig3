@@ -12,7 +12,8 @@ This repository contains code to generate Fig2 and Fig3 from the paper [TBD].
 - `. venv/bin/activate`
 - `pip install -r requirements-txt`
 
-Now you should be good to run `python main.py` and wait around 30 minutes to generate Fig 2 and Fig 3:
+Now all should be ready to run `python main.py`. It takes a moment to generate Fig 2
+and around 90 minutes to generate Fig 3:
 ![fig2](Fig2.png "Fig2")
 
 ![fig3](Fig3.png "Fig3")
