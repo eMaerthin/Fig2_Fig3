@@ -1,15 +1,14 @@
-import matplotlib
-from mpl_toolkits.axes_grid1 import inset_locator
 from itertools import product
-import seaborn as sns
-from matplotlib import cm
-from matplotlib import rc
+import matplotlib
+from matplotlib import cm, rc
+from matplotlib import pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+import mpl_toolkits
+from mpl_toolkits.axes_grid1 import Divider, inset_locator, Size
 import numpy as np
 import pandas as pd
-from mpl_toolkits.axes_grid1 import Size, Divider
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib import pyplot as plt
-import mpl_toolkits
+import seaborn as sns
+
 
 cms = 1 / 2.54  # centimeters in inches
 STEP = 0.004
@@ -463,7 +462,6 @@ def plot_pts(data, pts, R_max, ax=None):
 
 def fig2(scenarios, pts):
     matplotlib.rcParams['axes.linewidth'] = 0.5  # set the value globally
-    from mpl_toolkits.axes_grid1 import Size, Divider
     fig_width = 8.9
     fig_height = 4.9
     fig = plt.figure(figsize=(fig_width * cms, fig_height * cms), dpi=300)
