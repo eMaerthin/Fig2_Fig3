@@ -1,6 +1,7 @@
 # Fig2_Fig3
 
-This repository contains code to generate Fig2 and Fig3 from the paper [TBD].
+This repository contains code to generate Fig2 and Fig3 from the paper 
+Krueger et al "Risk of COVID-19 epidemic resurgence with the introduction of vaccination passes".
 
 ## Prerequisities
 
