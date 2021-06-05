@@ -18,3 +18,5 @@ and around 90 minutes to generate Fig 3:
 ![fig2](Fig2.png "Fig2")
 
 ![fig3](Fig3.png "Fig3")
+
+![fig4](Fig4.png "Fig4")
