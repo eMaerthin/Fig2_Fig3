@@ -431,7 +431,7 @@ def reff_pref(data):
     for f, fv in product(f_list, repeat=2):
         S = data['S']
         Sv = data['Sv']
-        if f == 0 and fv == 0:
+        if f == 1 and fv == 1:
             lambda_m = 0
         else:
             lambda_m = S * (1 - f) - 0.5 + (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv + (
