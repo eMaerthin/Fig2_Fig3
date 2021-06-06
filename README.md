@@ -13,10 +13,10 @@ Krueger et al "Risk of COVID-19 epidemic resurgence with the introduction of vac
 - `. venv/bin/activate`
 - `pip install -r requirements.txt`
 
-Now all should be ready to run `python main.py`. It takes a moment to generate Fig 2,
-around 90 minutes to generate Fig 3, and about 6 hours to generate Fig 4:
-![fig2](Fig2.png "Fig2")
+Now all should be ready to run `python main.py`. It takes a moment to generate Fig 1b,
+around 90 minutes to generate Fig 2, and about 6 hours to generate Fig 3:
+![fig2](Fig1b.png "Fig1b")
 
-![fig3](Fig3.png "Fig3")
+![fig3](Fig2.png "Fig2")
 
-![fig4](Fig4.png "Fig4")
+![fig4](Fig3.png "Fig3")

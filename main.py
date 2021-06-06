@@ -68,6 +68,8 @@ def doubling_time(data, pts, R_max, ax=None):
         fv = pt['fv']
         color = pt['color']
         signature = pt['signature']
+        if signature == '-':
+            continue
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
                 (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']
                  ) ** 2 + 4 * data['S'] * data['Sv'] * R1(f, R_max) ** 2) ** 0.5)
@@ -79,11 +81,11 @@ def doubling_time(data, pts, R_max, ax=None):
         for above_100 in above_100_split:
             ax.plot(above_100, [100] * len(above_100), '--', c=color, linewidth=0.5)
         data['doubling_time'] = data['doubling_time'].apply(lambda x: np.nan if x > 100 else -np.nan if x < 0 else x)
-        data.plot('time', 'doubling_time', ax=ax, label=f'Scenario {signature}', color=color, linewidth=0.5)
+        data.plot('time', 'doubling_time', ax=ax, label=r'$\mathtt{' + f'{signature}' + r'}$', color=color, linewidth=0.5)
 
     ax.set_ylabel('D', fontdict=fontdict, labelpad=0)
     ax.set_xlabel('time', fontdict=fontdict)
-    legend = ax.legend(ncol=3, fontsize=FONT_SIZE, bbox_to_anchor=(0.8, -1., 0.25, 0.5))
+    legend = ax.legend(ncol=2, fontsize=FONT_SIZE, bbox_to_anchor=[1.1, -0.5], title='Scenarios')
     legend.get_frame().set_linewidth(0.5)
     legend.get_frame().set_edgecolor("black")
     legend.get_frame().set_facecolor("white")
@@ -481,7 +483,7 @@ def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
     ax.yaxis.set_tick_params(width=0.5)
 
 
-def fig2(scenarios, pts):
+def fig1(scenarios, pts):
     matplotlib.rcParams['axes.linewidth'] = 0.5  # set the value globally
     fig_width = 8.9
     fig_height = 4.9
@@ -511,11 +513,37 @@ def fig2(scenarios, pts):
     data = generate_data(a, alpha, v1, v2)
     doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
     plot_pts(data=data, pts=pts, R_max=R_max, ax=ax1, save_timelines=True)
-    fig.savefig('Fig2.png')
-    fig.savefig('Fig2.pdf')
+    fig.savefig('Fig1.png')
+    fig.savefig('Fig1.pdf')
 
 
-def fig3(scenarios, pts0=None, labels0=None):
+def fig1b(scenarios, pts):
+    matplotlib.rcParams['axes.linewidth'] = 0.5  # set the value globally
+    fig_width = 4.4
+    fig_height = 4.9
+    fig = plt.figure(figsize=(fig_width * cms, fig_height * cms), dpi=300)
+    rc('font', **{'family': 'sans-serif', 'sans-serif': ['Arial'], 'size': FONT_SIZE})
+
+    h = [1.0, 3.0, 0.4]
+    v = [0.4, 2.0, 0.6, 1.1, 0.8][::-1]
+    # Sizes are in inches.
+    horiz = [Size.Fixed(h_ * cms) for h_ in h]
+    vert = [Size.Fixed(v_ * cms) for v_ in v]
+
+    rect = (0.0, 0.0, 1.0, 1.0)
+    # Divide the axes rectangle into a grid with sizes specified by horiz * vert.
+    divider = Divider(fig, rect, horiz, vert, aspect=False)
+    # The rect parameter will actually be ignored and overridden by axes_locator.
+    ax2 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=1, ny=3))
+
+    (a, alpha, v1, v2, type_, R_max, _, _) = scenarios[0]
+    data = generate_data(a, alpha, v1, v2)
+    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
+    fig.savefig('Fig1b.png')
+    fig.savefig('Fig1b.pdf')
+
+
+def fig2(scenarios, pts0=None, labels0=None):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -585,8 +613,8 @@ def fig3(scenarios, pts0=None, labels0=None):
                     pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig3.pdf', format='pdf')
-    fig.savefig('Fig3.png', format='png')
+    fig.savefig('Fig2.pdf', format='pdf')
+    fig.savefig('Fig2.png', format='png')
 
 
 def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
@@ -641,8 +669,8 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
 
     if pts is not None:
         for i, pt in enumerate(pts):
-            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, 'k.', mew=2)
-            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, '.', mew=1, color=pt['color'])
+            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, 'k.', mew=.6)
+            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, '.', mew=0, color=pt['color'])
     if labels is not None:
         for i, label in enumerate(labels):
             ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
@@ -789,7 +817,7 @@ def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.
     return i, iv
 
 
-def fig4(scenarios, pts0=None, labels0=None):
+def fig3(scenarios, pts0=None, labels0=None):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -855,8 +883,8 @@ def fig4(scenarios, pts0=None, labels0=None):
                      pts=pts, labels=labels, cax2=cax2)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig4.png', format='png')
-    fig.savefig('Fig4.pdf', format='pdf')
+    fig.savefig('Fig3.png', format='png')
+    fig.savefig('Fig3.pdf', format='pdf')
 
 
 if __name__ == "__main__":
@@ -877,12 +905,12 @@ if __name__ == "__main__":
     ]
     labels_ = [
         {'f': 0.83, 'fv': 0.13, 'signature': '-+', 'color': 'black', 'size': 6},
-        {'f': 0.57, 'fv': 0.26, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.62,
+        {'f': 0.6, 'fv': 0.26, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.62,
          'fv2': 0.1},
         {'f': 0.34, 'fv': 0.11, 'signature': '+', 'color': 'black', 'size': 6},
         {'f': 0.86, 'fv': 0.55, 'signature': '-', 'color': 'black', 'size': 6},
         {'f': 0.58, 'fv': 0.45, 'signature': '+-', 'color': 'black', 'size': 6}
     ]
-    fig2(scenarios=scenarios_, pts=pts_)
-    fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_)
-    fig4(scenarios=scenarios_, pts0=pts_, labels0=labels_)
+    fig1b(scenarios=scenarios_, pts=pts_)
+    #fig2(scenarios=scenarios_, pts0=pts_, labels0=labels_)
+    #fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_)
