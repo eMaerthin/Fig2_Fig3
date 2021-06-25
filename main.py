@@ -618,7 +618,7 @@ def fig2(scenarios, pts0=None, labels0=None, prefix=''):
             elif scen_ == 15:
                 change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
             elif scen_ == 16:
-                change = r'$d$' + f' = {a:.2f}' + r'$\omega$' + f' = {v2}'
+                change = r'$d$' + f' = {a:.2f}, ' + r'$\omega$' + f' = {v2}'
             key = f'change to reference: {change}'
         scale = int(np.round((1 / STEP)))
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
@@ -886,8 +886,21 @@ def fig3(scenarios, pts0=None, labels0=None, prefix=''):
             elif scen_ == 3:
                 change = r'$\omega$' + f' = {v2}'
             elif scen_ == 4:
-                # change = 'pref mix'
+                change = 'pref mix'
+            elif scen_ == 5:
                 change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 11:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}'
+            elif scen_ == 12:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 13:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 14:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 15:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 16:
+                change = r'$d$' + f' = {a:.2f}, ' + r'$\omega$' + f' = {v2}'
             key = f'change to reference: {change}'
         key = f'{key}'
         scale = int(np.round((1 / STEP)))
