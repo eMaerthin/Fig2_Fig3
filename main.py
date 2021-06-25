@@ -465,13 +465,21 @@ def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
                 (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']
                  ) ** 2 + 4 * data['S'] * data['Sv'] * R1(f, R_max) ** 2) ** 0.5)
-        data.plot('time', 'Reff', ax=ax, label=f'Scenario {signature}', color=color, linewidth=0.5)
+        # data.plot('time', 'Reff', ax=ax, label=f'Scenario {signature}', color=color, linewidth=0.5)
+        data.plot('time', 'Reff', ax=ax, label=r'$\mathtt{' + f'{signature}' + r'}$', color=color,
+                  linewidth=0.5)
+
         if save_timelines:
             data.to_csv(f'scenario_{signature}__line_{color}.csv', index=False)
-    ax.plot([0, 730], [1.0, 1.0], 'k--', label='Reff=1.0', linewidth=0.5)
     ax.set_ylabel('R*', fontdict=fontdict)
     ax.set_xlabel('time', fontdict=fontdict)
     ax.get_legend().remove()
+    legend = ax.legend(ncol=2, fontsize=FONT_SIZE, bbox_to_anchor=[1.1, -0.5]) # , title='Scenarios')
+    legend.get_frame().set_linewidth(0.5)
+    legend.get_frame().set_edgecolor("black")
+    legend.get_frame().set_facecolor("white")
+    ax.plot([0, 730], [1.0, 1.0], 'k--', label='Reff=1.0', linewidth=0.5)
+
     ax.set_ylim([0.0, 2.5])
     ax.set_xlim([0, 730])
     ax.set_xticks([0, 182, 365, 365 + 182, 730])
@@ -483,14 +491,14 @@ def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
     ax.yaxis.set_tick_params(width=0.5)
 
 
-def fig1(scenarios, pts):
+def fig1a(scenarios, pts):
     matplotlib.rcParams['axes.linewidth'] = 0.5  # set the value globally
-    fig_width = 8.9
+    fig_width = 4.4
     fig_height = 4.9
     fig = plt.figure(figsize=(fig_width * cms, fig_height * cms), dpi=300)
     rc('font', **{'family': 'sans-serif', 'sans-serif': ['Arial'], 'size': FONT_SIZE})
 
-    h = [1.0, 3.0, 1.5, 3.0, 0.4]
+    h = [1.0, 3.0, 0.4]
     v = [0.4, 2.0, 0.6, 1.1, 0.8][::-1]
     # Sizes are in inches.
     horiz = [Size.Fixed(h_ * cms) for h_ in h]
@@ -501,20 +509,12 @@ def fig1(scenarios, pts):
     divider = Divider(fig, rect, horiz, vert, aspect=False)
     # The rect parameter will actually be ignored and overridden by axes_locator.
     ax1 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=1, ny=3))
-    ax2 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=3, ny=3))
-    axa = fig.add_axes(rect, axes_locator=divider.new_locator(nx=0, ny=4), frameon=False)
-    axb = fig.add_axes(rect, axes_locator=divider.new_locator(nx=2, ny=4), frameon=False)
-    for iax in [axa, axb]:
-        iax.set_yticks([]), iax.set_xticks([])
-    axa.text(0.1, 0.4, 'a', weight='bold', size=FONT_SIZE, fontdict=fontdict)
-    axb.text(0.2, 0.4, 'b', weight='bold', size=FONT_SIZE, fontdict=fontdict)
 
     (a, alpha, v1, v2, type_, R_max, _, _) = scenarios[0]
     data = generate_data(a, alpha, v1, v2)
-    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
     plot_pts(data=data, pts=pts, R_max=R_max, ax=ax1, save_timelines=True)
-    fig.savefig('Fig1.png')
-    fig.savefig('Fig1.pdf')
+    fig.savefig('Fig1a_delta_variant.png')
+    fig.savefig('Fig1a_delta_variant.pdf')
 
 
 def fig1b(scenarios, pts):
@@ -539,11 +539,11 @@ def fig1b(scenarios, pts):
     (a, alpha, v1, v2, type_, R_max, _, _) = scenarios[0]
     data = generate_data(a, alpha, v1, v2)
     doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
-    fig.savefig('Fig1b.png')
-    fig.savefig('Fig1b.pdf')
+    fig.savefig('Fig1b_delta_variant.png')
+    fig.savefig('Fig1b_delta_variant.pdf')
 
 
-def fig2(scenarios, pts0=None, labels0=None):
+def fig2(scenarios, pts0=None, labels0=None, prefix=''):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -591,33 +591,46 @@ def fig2(scenarios, pts0=None, labels0=None):
         if scen_ == '*':
             pts = pts0
             labels = labels0
-            key = r'$a$' + f' = {alpha:.1f}, ' + r'$\upsilon$' + f' = {v1}, '
-            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.1f}'
+            key = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}, '
+            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.2f}'
         else:
             change = ''
             if scen_ == 0:
-                change = r'$d$' + f' = {a}'
+                change = r'$d$' + f' = {a:.2f}'
             elif scen_ == 1:
-                change = r'$a$' + f' = {alpha:.1f}'
+                change = r'$a$' + f' = {alpha:.2f}'
             elif scen_ == 2:
                 change = r'$\upsilon$' + f' = {v1}'
             elif scen_ == 3:
                 change = r'$\omega$' + f' = {v2}'
             elif scen_ == 4:
                 change = 'pref mix'
+            elif scen_ == 5:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 11:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}'
+            elif scen_ == 12:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 13:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 14:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 15:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 16:
+                change = r'$d$' + f' = {a:.2f}' + r'$\omega$' + f' = {v2}'
             key = f'change to reference: {change}'
-        key = f'{key}'
         scale = int(np.round((1 / STEP)))
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure(heatmap, reff_heatmap, heatmap_signature, key=key, ax=inset_axes, add_title=True,
                     pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig2.pdf', format='pdf')
-    fig.savefig('Fig2.png', format='png')
+    fig.savefig(f'{prefix}Fig2.pdf', format='pdf')
+    fig.savefig(f'{prefix}Fig2.png', format='png')
 
 
-def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
+def plot_figure3(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
                  labels=None, cax2=None):
     if ax is None:
         return
@@ -648,7 +661,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     from matplotlib.colors import LogNorm
     df_plus = df.copy() + 1e-8
     vmin = 10 + 1e-8
-    vmax = 1000 + 1e-8
+    vmax = 2000 + 1e-8
     sns.heatmap(df_plus, ax=ax, cmap=cmap1, square=True, xticklabels=scale,
                 norm=LogNorm(vmin=vmin, vmax=vmax), vmin=vmin, vmax=vmax,
                 yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I_V',
@@ -695,8 +708,8 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
             'orientation': 'horizontal'})
     cb = h.figure.colorbar(h.collections[0], cax=cax2,
                            label='Daily cases in the endemic state',
-                           orientation='horizontal', extend='both', ticks=[vmin, 100 + 1e-8, vmax])
-    cb.ax.set_xticklabels([r'$\leq$' + '10/mln', '100/mln', r'$\geq$' + '1000/mln'])
+                           orientation='horizontal', extend='both', ticks=[vmin, 100 + 1e-8, 1000 + 1e-8, vmax])
+    cb.ax.set_xticklabels([r'$\leq$' + '10/mln', '100/mln', '', r'$\geq$' + '2000/mln'])
     cb.ax.tick_params(labelsize=FONT_SIZE, width=0.5, length=4, pad=2)  # Set the colorbar scale font size.
     text = cb.ax.xaxis.label
     text.set_font_properties(font)
@@ -817,7 +830,7 @@ def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.
     return i, iv
 
 
-def fig3(scenarios, pts0=None, labels0=None):
+def fig3(scenarios, pts0=None, labels0=None, prefix=''):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -860,57 +873,141 @@ def fig3(scenarios, pts0=None, labels0=None):
         if scen_ == '*':
             pts = pts0
             labels = labels0
-            key = r'$a$' + f' = {alpha:.1f}, ' + r'$\upsilon$' + f' = {v1}, '
-            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.1f}'
+            key = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}, '
+            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.2f}'
         else:
             change = ''
             if scen_ == 0:
-                change = r'$d$' + f' = {a}'
+                change = r'$d$' + f' = {a:.2f}'
             elif scen_ == 1:
-                change = r'$a$' + f' = {alpha:.1f}'
+                change = r'$a$' + f' = {alpha:.2f}'
             elif scen_ == 2:
                 change = r'$\upsilon$' + f' = {v1}'
             elif scen_ == 3:
                 change = r'$\omega$' + f' = {v2}'
             elif scen_ == 4:
-                change = 'pref mix'
+                # change = 'pref mix'
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
             key = f'change to reference: {change}'
         key = f'{key}'
         scale = int(np.round((1 / STEP)))
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
-        plot_figure4(bottom_right, top_left,
+        plot_figure3(bottom_right, top_left,
                      heatmap_signature, key=key, ax=inset_axes, add_title=True,
                      pts=pts, labels=labels, cax2=cax2)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig3.png', format='png')
-    fig.savefig('Fig3.pdf', format='pdf')
+    fig.savefig(f'{prefix}Fig3.png', format='png')
+    fig.savefig(f'{prefix}Fig3.pdf', format='pdf')
 
 
 if __name__ == "__main__":
     # execute only if run as a script
-    scenarios_ = [(0.1, 0.9, 0.004, 1 / 500, 'prop', 4, '*', 'a'),
-                  (0.1, 0.6, 0.004, 1 / 500, 'prop', 4, 1, 'b'),
-                  (0.1, 0.9, 0.008, 1 / 500, 'prop', 4, 2, 'c'),
-                  (0.1, 0.9, 0.004, 1 / 500, 'pref', 4, 4, 'd'),
-                  (0.3, 0.9, 0.004, 1 / 500, 'prop', 4, 0, 'e'),
-                  (0.1, 0.9, 0.004, 1 / 200, 'prop', 4, 3, 'f')
-                  ]
-    pts_ = [
+    scenarios_old = [
+        (0.1, 0.9, 0.004, 1 / 500, 'prop', 4, '*', 'a'),
+        (0.1, 0.6, 0.004, 1 / 500, 'prop', 4, 1, 'b'),
+        (0.1, 0.9, 0.008, 1 / 500, 'prop', 4, 2, 'c'),
+        (0.1, 0.9, 0.004, 1 / 500, 'pref', 4, 4, 'd'),
+        (0.3, 0.9, 0.004, 1 / 500, 'prop', 4, 0, 'e'),
+        (0.1, 0.9, 0.004, 1 / 200, 'prop', 4, 3, 'f')
+    ]
+    alpha_pfizer = 0.92
+    alpha_az = 0.73
+    denials_gb = 0.12
+    denials_fr = 0.3
+    waning_time1 = 1/500
+    waning_time2 = 1/200
+    omega1_low = 0.004
+    omega1_high = 0.008
+    R_0_alpha = 4
+    scenarios_alpha = [
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, '*', 'a'),
+        (denials_gb, alpha_az, omega1_low, waning_time1, 'prop', R_0_alpha, 1, 'b'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_alpha, 2, 'c'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'pref', R_0_alpha, 4, 'd'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, 0, 'e'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_alpha, 3, 'f')
+    ]
+    labels_alpha = None
+
+    pts_alpha = [
         {'f': 0.92, 'fv': 0.04, 'signature': '-+', 'color': 'violet'},
         {'f': 0.63, 'fv': 0.05, 'signature': '+-+', 'color': 'orange'},
         {'f': 0.45, 'fv': 0.32, 'signature': '+', 'color': 'red'},
         {'f': 0.82, 'fv': 0.4, 'signature': '-', 'color': 'blue'},
         {'f': 0.7, 'fv': 0.4, 'signature': '+-', 'color': 'deepskyblue'}
     ]
-    labels_ = [
-        {'f': 0.83, 'fv': 0.13, 'signature': '-+', 'color': 'black', 'size': 6},
-        {'f': 0.6, 'fv': 0.26, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.62,
-         'fv2': 0.1},
-        {'f': 0.34, 'fv': 0.11, 'signature': '+', 'color': 'black', 'size': 6},
-        {'f': 0.86, 'fv': 0.55, 'signature': '-', 'color': 'black', 'size': 6},
-        {'f': 0.58, 'fv': 0.45, 'signature': '+-', 'color': 'black', 'size': 6}
+    # We don't need it now
+    pts_alpha = None
+    alpha_prefix = 'alpha1_'
+
+    delta_pfizer = 0.79
+    delta_az = 0.6
+    R_0_delta = 6
+    scenarios_delta = [
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, '*', 'a'),
+        (denials_gb, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 1, 'b'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 2, 'c'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 5, 'd'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, 0, 'e'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 3, 'f')
     ]
-    fig1b(scenarios=scenarios_, pts=pts_)
-    #fig2(scenarios=scenarios_, pts0=pts_, labels0=labels_)
-    #fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_)
+    pts_delta_adjusted = [
+        {'f': 0.95, 'fv': 0.2, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.78, 'fv': 0.5, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.6, 'fv': 0.55, 'signature': '+', 'color': 'red'},
+        {'f': 0.9, 'fv': 0.7, 'signature': '-', 'color': 'blue'},
+        {'f': 0.7, 'fv': 0.78, 'signature': '+-', 'color': 'deepskyblue'}
+    ]
+    labels_delta = [
+        {'f': 0.88, 'fv': 0.3, 'signature': '-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.88,
+         'fv2': 0.28},
+        {'f': 0.44, 'fv': 0.78, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.44},
+        {'f': 0.45, 'fv': 0.2, 'signature': '+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.52,
+         'fv2': 0.2},
+        {'f': 0.9, 'fv': 0.76, 'signature': '-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.92,
+         'fv2': 0.71},
+        {'f': 0.72, 'fv': 0.68, 'signature': '+-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.67}
+    ]
+    delta_prefix = 'delta1_'
+
+    scenarios_delta_2 = [
+        (denials_gb, delta_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
+        (denials_fr, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
+        (denials_gb, delta_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
+        (denials_fr, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+    ]
+    labels_delta_2 = None
+    pts_delta_adjusted_2 = None
+    delta2_prefix = 'delta2_'
+
+    scenarios_alpha_2 = [
+        (denials_gb, alpha_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
+        (denials_fr, alpha_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
+        (denials_gb, alpha_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
+        (denials_fr, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+    ]
+    labels_alpha_2 = None
+    pts_alpha_2 = None
+    alpha2_prefix = 'alpha2_'
+
+    fig1a(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+    fig1b(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+
+    fig2(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta, prefix=delta_prefix)
+    fig3(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta, prefix=delta_prefix)
+
+    fig2(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2, prefix=delta2_prefix)
+    fig3(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2, prefix=delta2_prefix)
+
+    fig2(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2, prefix=alpha2_prefix)
+    fig3(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2, prefix=alpha2_prefix)
+
+    fig2(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha, prefix=alpha_prefix)
+    fig3(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha, prefix=alpha_prefix)
