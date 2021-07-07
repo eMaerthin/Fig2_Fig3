@@ -553,11 +553,11 @@ def reff_pref(data):
     return heatmap
 
 
-def reff_both(data, R_max, type_):
+def reff_both(data, R_max, type_, d, gamma=GAMMA):
     if type_ == 'prop':
-        return reff_prop(data, R_max)
+        return reff_prop(data=data, R_max=R_max)
     else:
-        return reff_pref2(data, R_max)
+        return reff_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
 
 def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
@@ -689,7 +689,7 @@ def fig2(scenarios, pts0=None, labels0=None, prefix=''):
     for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
         (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
         asymptotic_data_point = asymptotic_data(a, alpha, v1, v2)
-        reff_heatmap = reff_both(asymptotic_data_point, R_max, type_)
+        reff_heatmap = reff_both(data=asymptotic_data_point, R_max=R_max, type_=type_, d=a, gamma=GAMMA)
         data = generate_data(a, alpha, v1, v2)
         heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
         heatmap = heatmap_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
