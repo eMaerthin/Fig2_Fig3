@@ -12,7 +12,9 @@ from sympy import nsolve, Symbol
 
 
 cms = 1 / 2.54  # centimeters in inches
-STEP = 0.005
+GAMMA = 1/6
+KAPPA = 0.002
+STEP = 0.05
 FMT = '.3f'
 FONT_SIZE = 8
 f_list = np.arange(0, 1 + STEP, STEP)
@@ -147,6 +149,38 @@ def signature_pref(data):
     return heatmap_signature, signature_mapping
 
 
+def signature_pref2(data, R_max, gamma, d):
+    signature_mapping = dict()
+    heatmap_signature = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        d1 = ['*'] + list(data['lambda_m'].apply(lambda x: '+' if x > 0 else '-' if x < 0 else 'x'))
+        signature = ''.join([elem for elem, prev in zip(d1[1:], d1[:-1]) if elem != prev])
+        if signature.startswith('x'):
+            signature = signature[1:]
+        if signature == '':  # supporting an edge case
+            signature = '-'
+        heatmap_signature.append(set_elem_signature(f, fv, signature, signature_mapping))
+    return heatmap_signature, signature_mapping
+
+
 def signature_prop(data, R_max):
     signature_mapping = dict()
     heatmap_signature = []
@@ -162,14 +196,65 @@ def signature_prop(data, R_max):
     return heatmap_signature, signature_mapping
 
 
-def signature_calc(data, type_, R_max):
+def signature_calc(data, type_, R_max, gamma, d):
     if type_ == 'prop':
         return signature_prop(data, R_max)
     else:
-        if R_max != 4:
-            print(f'pref. for R_max different than 4 is not supported ({R_max})')
+        return signature_pref2(data, R_max, gamma, d)
+
+
+def heatmap_pref2(data, R_max, d, gamma):
+    heatmap = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        delta_star = delta
+        delta_plus = beta
+        if mixing_type == 'pref':
+            if beta == 0 and delta == 0:
+                delta_star = 0
+                delta_plus = 0
+            else:
+                delta_star = delta * delta / (beta * d + delta * (1 - d))
+                delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        if len(data[data['lambda_m'] > 0]) > 0:
+            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
+            if first_above_1 > 0:
+                # started as subcritical, will be overcritical
+                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
+            else:
+                # started as overcritical...
+                if len(data[data['lambda_m'] < 0]) > 0:
+                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
+                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
+                    data2 = data[first_below_1_id:]
+                    if len(data2[data2['lambda_m'] > 0]) > 0:
+                        # ...will be overcritical again
+                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
+                        heatmap.append(
+                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
+                    else:
+                        # ...not overcritical again within 2 years
+                        heatmap.append(
+                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+                else:
+                    # ... always overcritical
+                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
+
         else:
-            return signature_pref(data)
+            # under-critical
+            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+    return heatmap
 
 
 def heatmap_pref(data):
@@ -246,14 +331,11 @@ def heatmap_prop(data, R_max):
     return heatmap
 
 
-def heatmap_calc(data, type_, R_max):
+def heatmap_calc(data, type_, R_max, d, gamma=GAMMA):
     if type_ == 'prop':
         return heatmap_prop(data, R_max)
     else:
-        if R_max != 4:
-            print(f'pref. for R_max different than 4 is not supported ({R_max})')
-        else:
-            return heatmap_pref(data)
+        return heatmap_pref2(data, R_max=R_max, d=d, gamma=gamma)
 
 
 def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
@@ -584,8 +666,8 @@ def fig2(scenarios, pts0=None, labels0=None, prefix=''):
         asymptotic_data_point = asymptotic_data(a, alpha, v1, v2)
         reff_heatmap = reff_both(asymptotic_data_point, R_max, type_)
         data = generate_data(a, alpha, v1, v2)
-        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
-        heatmap = heatmap_calc(data, type_=type_, R_max=R_max)
+        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
+        heatmap = heatmap_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
         pts = None
         labels = None
         if scen_ == '*':
@@ -773,7 +855,7 @@ def plot_figure3(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
                     **cnfont)
 
 
-def heatmap4_calc(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.002, gamma=1/6):
+def heatmap4_calc(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=KAPPA, gamma=GAMMA):
     i = []
     iv = []
     for f, fv in product(f_list, repeat=2):
@@ -785,7 +867,7 @@ def heatmap4_calc(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.002,
     return i, iv
 
 
-def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.002, gamma=1/6):
+def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=KAPPA, gamma=GAMMA):
     x = Symbol('x')
     y = Symbol('y')
     beta = gamma * r_max * (1 - f)
@@ -865,9 +947,9 @@ def fig3(scenarios, pts0=None, labels0=None, prefix=''):
     for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
         (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
         data = generate_data(a, alpha, v1, v2)
-        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
+        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
         bottom_right, top_left = heatmap4_calc(d=a, upsilon1=v1, upsilon2=v2, r_max=R_max,
-                                               alpha=alpha, gamma=1/6, kappa=0.002, mixing_type=type_)
+                                               alpha=alpha, gamma=GAMMA, kappa=KAPPA, mixing_type=type_)
         pts = None
         labels = None
         if scen_ == '*':
@@ -961,7 +1043,7 @@ if __name__ == "__main__":
         (denials_gb, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, '*', 'a'),
         (denials_gb, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 1, 'b'),
         (denials_gb, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 2, 'c'),
-        (denials_gb, delta_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 5, 'd'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'pref', R_0_delta, 4, 'd'),
         (denials_fr, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, 0, 'e'),
         (denials_gb, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 3, 'f')
     ]
