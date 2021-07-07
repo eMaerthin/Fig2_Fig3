@@ -14,7 +14,7 @@ from sympy import nsolve, Symbol
 cms = 1 / 2.54  # centimeters in inches
 GAMMA = 1/6
 KAPPA = 0.002
-STEP = 0.05
+STEP = 0.005
 FMT = '.3f'
 FONT_SIZE = 8
 f_list = np.arange(0, 1 + STEP, STEP)
