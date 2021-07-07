@@ -149,7 +149,7 @@ def signature_pref(data):
     return heatmap_signature, signature_mapping
 
 
-def signature_pref2(data, R_max, gamma, d):
+def signature_pref2(data, R_max, d, gamma=GAMMA):
     signature_mapping = dict()
     heatmap_signature = []
     r_max = R_max
@@ -196,14 +196,14 @@ def signature_prop(data, R_max):
     return heatmap_signature, signature_mapping
 
 
-def signature_calc(data, type_, R_max, gamma, d):
+def signature_calc(data, type_, R_max, d, gamma=GAMMA):
     if type_ == 'prop':
-        return signature_prop(data, R_max)
+        return signature_prop(data=data, R_max=R_max)
     else:
-        return signature_pref2(data, R_max, gamma, d)
+        return signature_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
 
-def heatmap_pref2(data, R_max, d, gamma):
+def heatmap_pref2(data, R_max, d, gamma=GAMMA):
     heatmap = []
     r_max = R_max
     for f, fv in product(f_list, repeat=2):
@@ -509,6 +509,32 @@ def reff_prop(data, R_max):
     return heatmap
 
 
+def reff_pref2(data, R_max, d, gamma=GAMMA):
+    heatmap = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        lambda_m = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        Reff = lambda_m / gamma + 1
+        heatmap.append(set_elem_heatmap(f, fv, Reff))
+    return heatmap
+
+
 def reff_pref(data):
     heatmap = []
     gamma = 1 / 6
@@ -531,8 +557,7 @@ def reff_both(data, R_max, type_):
     if type_ == 'prop':
         return reff_prop(data, R_max)
     else:
-        assert R_max == 4, 'Reff does not support R_max different than 4'
-        return reff_pref(data)
+        return reff_pref2(data, R_max)
 
 
 def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
