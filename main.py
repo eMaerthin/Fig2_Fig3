@@ -211,15 +211,12 @@ def heatmap_pref2(data, R_max, d, gamma=GAMMA):
         Sv = data['Sv']
         beta = gamma * r_max * (1 - f)
         delta = gamma * r_max * (1 - fv)
-        delta_star = delta
-        delta_plus = beta
-        if mixing_type == 'pref':
-            if beta == 0 and delta == 0:
-                delta_star = 0
-                delta_plus = 0
-            else:
-                delta_star = delta * delta / (beta * d + delta * (1 - d))
-                delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
         a11 = beta * S - gamma
         a12 = delta_plus * S
         a21 = beta * Sv
