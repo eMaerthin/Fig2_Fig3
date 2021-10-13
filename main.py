@@ -9,10 +9,16 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sympy import nsolve, Symbol
+from joblib import Parallel, delayed
+import time 
 
+MY_N_JOBS = 62
+
+GAMMA = 1/6
+KAPPA = 0.002 
 
 cms = 1 / 2.54  # centimeters in inches
-STEP = 0.005
+STEP = 0.05
 FMT = '.3f'
 FONT_SIZE = 8
 f_list = np.arange(0, 1 + STEP, STEP)
@@ -29,7 +35,11 @@ color_array[:128, 0] = 0.5 * (1.0 + color_array[:128, 0])
 color_array[128:, 1] = 0.5 * (1.0 + color_array[128:, 1])
 map_object = LinearSegmentedColormap.from_list(name='PRGn_alpha', colors=color_array)
 plt.register_cmap(cmap=map_object)
+SIGNATURES_MAPPING = {"-": 0, "-+":1, "+":2, "+-":3, "+-+":4, "-+-": 5}
 
+
+def flattened_list(nested_list):
+    return [item for sublist in nested_list for item in sublist]
 
 def formula_v(a, alpha, v1, v2, t):
     return (1 - a) * v1 * alpha / (v1 + v2) * (1 - np.exp(-(v1 + v2) * t))
@@ -87,7 +97,7 @@ def doubling_time(data, pts, R_max, ax=None):
     ax.set_xlabel('time', fontdict=fontdict)
     legend = ax.legend(ncol=2, fontsize=FONT_SIZE, bbox_to_anchor=[1.1, -0.5], title='Scenarios')
     legend.get_frame().set_linewidth(0.5)
-    legend.get_frame().set_edgecolor("black")
+    legend.get_frame().set_edgecolor("yellow")
     legend.get_frame().set_facecolor("white")
     ax.set_ylim([0, 105])
     ax.set_xlim([0, 730])
@@ -118,8 +128,9 @@ def generate_data(a, alpha, v1, v2):
 
 def set_elem_signature(f, fv, value, signatures, fmt=FMT):
     fmt = '{:' + fmt + '}'
-    signatures[value] = signatures.get(value, len(signatures))
-    value = signatures[value]
+    #signatures[value] = signatures.get(value, len(signatures))
+    #value = signatures[value]
+    value = SIGNATURES_MAPPING[value]
     return {'f': fmt.format(f), 'fv': fmt.format(fv), 'value': value}
 
 
@@ -146,8 +157,95 @@ def signature_pref(data):
         heatmap_signature.append(set_elem_signature(f, fv, signature, signature_mapping))
     return heatmap_signature, signature_mapping
 
+def signature_pref2_old(data, R_max, d, gamma=GAMMA):
+    signature_mapping = dict()
+    heatmap_signature = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        d1 = ['*'] + list(data['lambda_m'].apply(lambda x: '+' if x > 0 else '-' if x < 0 else 'x'))
+        signature = ''.join([elem for elem, prev in zip(d1[1:], d1[:-1]) if elem != prev])
+        if signature.startswith('x'):
+            signature = signature[1:]
+        if signature == '':  # supporting an edge case
+            signature = '-'
+        heatmap_signature.append(set_elem_signature(f, fv, signature, signature_mapping))
+    return heatmap_signature, signature_mapping
+
+def signature_pref2(data, R_max, d, gamma=GAMMA):
+    signature_mapping = None #dict()
+    #heatmap_signature = []
+    r_max = R_max
+    
+    def signature_pref2_parallel(f):
+        res = [None] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            S = data['S']
+            Sv = data['Sv']
+            beta = gamma * r_max * (1 - f)
+            delta = gamma * r_max * (1 - fv)
+            if beta == 0 and delta == 0:
+                delta_star = 0
+                delta_plus = 0
+            else:
+                delta_star = delta * delta / (beta * d + delta * (1 - d))
+                delta_plus = beta * beta / (beta * d + delta * (1 - d))
+            a11 = beta * S - gamma
+            a12 = delta_plus * S
+            a21 = beta * Sv
+            a22 = delta_star * Sv - gamma
+            t = a11 + a22
+            det = a11 * a22 - a12 * a21
+            data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+            d1 = ['*'] + list(data['lambda_m'].apply(lambda x: '+' if x > 0 else '-' if x < 0 else 'x'))
+            signature = ''.join([elem for elem, prev in zip(d1[1:], d1[:-1]) if elem != prev])
+            if signature.startswith('x'):
+                signature = signature[1:]
+            if signature == '':  # supporting an edge case
+                signature = '-'
+            res[idx] = set_elem_signature(f, fv, signature, signature_mapping)
+        return res
+
+    output = Parallel(n_jobs = MY_N_JOBS)(delayed(signature_pref2_parallel)(f) for f in f_list)
+    return flattened_list(output), signature_mapping
 
 def signature_prop(data, R_max):
+    signature_mapping = None #dict()
+    
+    def signature_prop_parallel(f):
+        res = [None] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
+                (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']
+                 ) ** 2 + 4 * data['S'] * data['Sv'] * R1(f, R_max) ** 2) ** 0.5)
+            d1 = ['*'] + list(data['Reff'].apply(lambda x: '+' if x > 1 else '-' if x < 1 else 'x'))
+            signature = ''.join([elem for elem, prev in zip(d1[1:], d1[:-1]) if elem != prev])
+            if signature.startswith('x'):
+                signature = signature[1:]
+            res[idx] = set_elem_signature(f, fv, signature, signature_mapping)
+        return res
+     
+    output = Parallel(n_jobs = MY_N_JOBS)(delayed(signature_prop_parallel)(f) for f in f_list)
+    
+    return flattened_list(output), signature_mapping
+    
+def signature_prop_old(data, R_max):
     signature_mapping = dict()
     heatmap_signature = []
     for f, fv in product(f_list, repeat=2):
@@ -162,7 +260,7 @@ def signature_prop(data, R_max):
     return heatmap_signature, signature_mapping
 
 
-def signature_calc(data, type_, R_max):
+def signature_calc_old(data, type_, R_max):
     if type_ == 'prop':
         return signature_prop(data, R_max)
     else:
@@ -170,6 +268,62 @@ def signature_calc(data, type_, R_max):
             print(f'pref. for R_max different than 4 is not supported ({R_max})')
         else:
             return signature_pref(data)
+
+def signature_calc(data, type_, R_max, d, gamma=GAMMA):
+    if type_ == 'prop':
+        return signature_prop(data=data, R_max=R_max)
+    else:
+        return signature_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
+
+def heatmap_pref2_old(data, R_max, d, gamma=GAMMA):
+    heatmap = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        if len(data[data['lambda_m'] > 0]) > 0:
+            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
+            if first_above_1 > 0:
+                # started as subcritical, will be overcritical
+                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
+            else:
+                # started as overcritical...
+                if len(data[data['lambda_m'] < 0]) > 0:
+                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
+                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
+                    data2 = data[first_below_1_id:]
+                    if len(data2[data2['lambda_m'] > 0]) > 0:
+                        # ...will be overcritical again
+                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
+                        heatmap.append(
+                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
+                    else:
+                        # ...not overcritical again within 2 years
+                        heatmap.append(
+                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+                else:
+                    # ... always overcritical
+                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
+
+        else:
+            # under-critical
+            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+    return heatmap
 
 
 def heatmap_pref(data):
@@ -210,7 +364,108 @@ def heatmap_pref(data):
     return heatmap
 
 
+def heatmap_pref2(data, R_max, d, gamma=GAMMA):
+    
+    #heatmap = []
+    r_max = R_max
+    
+    def heatmap_pref2_parallel(f):
+
+        res = [None] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            S = data['S']
+            Sv = data['Sv']
+            beta = gamma * r_max * (1 - f)
+            delta = gamma * r_max * (1 - fv)
+            if beta == 0 and delta == 0:
+                delta_star = 0
+                delta_plus = 0
+            else:
+                delta_star = delta * delta / (beta * d + delta * (1 - d))
+                delta_plus = beta * beta / (beta * d + delta * (1 - d))
+            a11 = beta * S - gamma
+            a12 = delta_plus * S
+            a21 = beta * Sv
+            a22 = delta_star * Sv - gamma
+            t = a11 + a22
+            det = a11 * a22 - a12 * a21
+            data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+            if len(data[data['lambda_m'] > 0]) > 0:
+                first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
+                if first_above_1 > 0:
+                    # started as subcritical, will be overcritical
+                    res[idx] = set_elem_heatmap(f, fv, first_above_1)  # [(f, fv)] = first_above_1
+                else:
+                    # started as overcritical...
+                    if len(data[data['lambda_m'] < 0]) > 0:
+                        first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
+                        first_below_1_id = data[data['lambda_m'] < 0].index[0]
+                        data2 = data[first_below_1_id:]
+                        if len(data2[data2['lambda_m'] > 0]) > 0:
+                            # ...will be overcritical again
+                            first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
+                            res[idx] = set_elem_heatmap(f, fv, first_exit_above_1)  # heatmap[key][(f, fv)] = first_exit_above_1
+                        else:
+                            # ...not overcritical again within 2 years
+                            res[idx] = set_elem_heatmap(f, fv, MAX_VAL + first_below_1)  # np.nan))#heatmap[key][(f, fv)] = np.nan
+                    else:
+                        # ... always overcritical
+                        res[idx] = set_elem_heatmap(f, fv, MIN_VAL)  # heatmap[key][(f, fv)] = np.nan
+
+            else:
+                # under-critical
+                res[idx] = set_elem_heatmap(f, fv, MAX_VAL)  # np.nan))#heatmap[key][(f, fv)] = np.nan
+
+        return res 
+
+    output = Parallel(n_jobs=MY_N_JOBS)(delayed(heatmap_pref2_parallel)(f) for f in f_list)
+    
+    return flattened_list(output)
+
+
+
 def heatmap_prop(data, R_max):
+
+    def heatmap_prop_parallel(f):
+        res = [None] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
+                    (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']) ** 2 + 4 * data['S'] * data['Sv'] * R1(f,
+                                                                                                                R_max) ** 2) ** 0.5)        
+            if len(data[data['Reff'] > 1]) > 0:
+                first_above_1 = data[data['Reff'] > 1].time.to_numpy()[0]
+                if first_above_1 > 0:
+                    # started as subcritical, will be overcritical
+                    res[idx] = set_elem_heatmap(f, fv, first_above_1)  # [(f, fv)] = first_above_1
+                else:
+                    # started as overcritical...
+                    if len(data[data['Reff'] < 1]) > 0:
+                        first_below_1 = data[data['Reff'] < 1].time.to_numpy()[0]
+                        first_below_1_id = data[data['Reff'] < 1].index[0]
+                        data2 = data[first_below_1_id:]
+                        if len(data2[data2['Reff'] > 1]) > 0:
+                            # ...will be overcritical again
+                            first_exit_above_1 = data2[data2['Reff'] > 1].time.to_numpy()[0]
+                            res[idx] = set_elem_heatmap(f, fv, first_exit_above_1)  # heatmap[key][(f, fv)] = first_exit_above_1
+                        else:
+                            # ...not overcritical again within 2 years
+                            res[idx] = set_elem_heatmap(f, fv, MAX_VAL + first_below_1)  # np.nan))#heatmap[key][(f, fv)] = np.nan
+                    else:
+                        # ... always overcritical
+                        res[idx] = set_elem_heatmap(f, fv, MIN_VAL)  # heatmap[key][(f, fv)] = np.nan
+
+            else:
+                # under-critical
+                res[idx] = set_elem_heatmap(f, fv, MAX_VAL)  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        
+        return res 
+
+    output = Parallel(n_jobs=MY_N_JOBS)(delayed(heatmap_prop_parallel)(f) for f in f_list)
+    
+    return flattened_list(output)
+
+
+def heatmap_prop_old(data, R_max):
     heatmap = []
     for f, fv in product(f_list, repeat=2):
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
@@ -246,7 +501,7 @@ def heatmap_prop(data, R_max):
     return heatmap
 
 
-def heatmap_calc(data, type_, R_max):
+def heatmap_calc_old(data, type_, R_max):
     if type_ == 'prop':
         return heatmap_prop(data, R_max)
     else:
@@ -255,6 +510,11 @@ def heatmap_calc(data, type_, R_max):
         else:
             return heatmap_pref(data)
 
+def heatmap_calc(data, type_, R_max, d, gamma=GAMMA):
+    if type_ == 'prop':
+        return heatmap_prop(data, R_max)
+    else:
+        return heatmap_pref2(data, R_max=R_max, d=d, gamma=gamma)
 
 def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
                 labels=None, cax1=None, cax2=None, cax3=None):
@@ -308,15 +568,24 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
     ax.plot([10 * scale + 1, 0], [0, 10 * scale + 1], 'w--')
     cnfont = {'fontname': 'Courier New', 'size': 8}
 
+    box_props = dict(boxstyle='round', facecolor='white', alpha=0.75)
+    arrow_props = dict(arrowstyle = "->", connectionstyle = "arc3, rad=0.1", fc = "white", alpha=0.95)
     if pts is not None:
         for i, pt in enumerate(pts):
             ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, 'k.', mew=0.6)
             ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, '.', mew=0, color=pt['color'])
     if labels is not None:
         for i, label in enumerate(labels):
-            ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
-                    color=label['color'], **cnfont)
-
+            #ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
+            #        color=label['color'], bbox = box_props, **cnfont)
+            arrow_style = None
+            arrow_to = ((pts[i]['f']) * scale * 10 + 0.5, (1 - (pts[i]['fv'])) * scale * 10 + 0.5) 
+            if label.get('arrow1'):
+                arrow_style = arrow_props
+                arrow_to = (label['f1arr'] * scale * 10 + 0.5, (1 - label['fv1arr']) * scale * 10 + 0.5)
+            ax.annotate(label['signature'], xy = arrow_to , xycoords = 'data', 
+                xytext = ((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5), textcoords = 'data', **cnfont,
+                va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
 
     df = pd.DataFrame(reff_heatmap)
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
@@ -409,8 +678,17 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
             if label.get('special', False):
                 fv = label['fv2']
                 f = label['f2']
-            ax.text(fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5, label['signature'], color=label['color'],
-                    **cnfont)
+            arrow_style = None
+            arrow_to = ((pts[i]['fv']) * scale * 10 + 0.5, (1 - (pts[i]['f'])) * scale * 10 + 0.5) 
+            if label.get('arrow2'):
+                arrow_style = arrow_props
+                arrow_to = (label['fv2arr'] * scale * 10 + 0.5, (1 - label['f2arr']) * scale * 10 + 0.5)
+            ax.annotate(label['signature'], xy = arrow_to , xycoords = 'data', 
+                xytext = (fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5), textcoords = 'data', **cnfont,
+                va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
+            
+            #ax.text(fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5, label['signature'], color=label['color'],
+            #        bbox = box_props, **cnfont)
 
 def asymptotic_data(a, alpha, v1, v2):
     return {'S': a,
@@ -418,6 +696,18 @@ def asymptotic_data(a, alpha, v1, v2):
 
 
 def reff_prop(data, R_max):
+
+    def reff_prop_parallel(f): 
+        res = [0] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            Reff = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * ((R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']) ** 2 + 4 * data['S'] * data['Sv'] * R1(f, R_max) ** 2) ** 0.5)
+            res[idx] = set_elem_heatmap(f, fv, Reff)
+        return res
+
+    output = Parallel(n_jobs=MY_N_JOBS)(delayed(reff_prop_parallel)(f) for f in f_list)
+    return flattened_list(output)
+
+def reff_prop_old(data, R_max):
     heatmap = []
     for f, fv in product(f_list, repeat=2):
         Reff = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
@@ -444,13 +734,43 @@ def reff_pref(data):
         heatmap.append(set_elem_heatmap(f, fv, Reff))
     return heatmap
 
+def reff_pref2(data, R_max, d, gamma=GAMMA):
+    heatmap = []
+    r_max = R_max
+    for f, fv in product(f_list, repeat=2):
+        S = data['S']
+        Sv = data['Sv']
+        beta = gamma * r_max * (1 - f)
+        delta = gamma * r_max * (1 - fv)
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+        a11 = beta * S - gamma
+        a12 = delta_plus * S
+        a21 = beta * Sv
+        a22 = delta_star * Sv - gamma
+        t = a11 + a22
+        det = a11 * a22 - a12 * a21
+        lambda_m = (t + np.sqrt(t ** 2 - 4 * det)) / 2
+        Reff = lambda_m / gamma + 1
+        heatmap.append(set_elem_heatmap(f, fv, Reff))
+    return heatmap
 
-def reff_both(data, R_max, type_):
+def reff_both_old(data, R_max, type_):
     if type_ == 'prop':
         return reff_prop(data, R_max)
     else:
         assert R_max == 4, 'Reff does not support R_max different than 4'
         return reff_pref(data)
+
+def reff_both(data, R_max, type_, d, gamma=GAMMA):
+    if type_ == 'prop':
+        return reff_prop(data=data, R_max=R_max)
+    else:
+        return reff_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
 
 def plot_pts(data, pts, R_max, ax=None, save_timelines=True):
@@ -543,7 +863,7 @@ def fig1b(scenarios, pts):
     fig.savefig('Fig1b.pdf')
 
 
-def fig2(scenarios, pts0=None, labels0=None):
+def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -582,29 +902,53 @@ def fig2(scenarios, pts0=None, labels0=None):
     for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
         (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
         asymptotic_data_point = asymptotic_data(a, alpha, v1, v2)
-        reff_heatmap = reff_both(asymptotic_data_point, R_max, type_)
+        #reff_heatmap = reff_both(asymptotic_data_point, R_max, type_) # old version before new preferential
+        reff_heatmap = reff_both(data=asymptotic_data_point, R_max=R_max, type_=type_, d=a, gamma=GAMMA)
         data = generate_data(a, alpha, v1, v2)
-        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
-        heatmap = heatmap_calc(data, type_=type_, R_max=R_max)
+        #heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
+        #heatmap = heatmap_calc(data, type_=type_, R_max=R_max)
+        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
+        heatmap = heatmap_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
         pts = None
         labels = None
         if scen_ == '*':
             pts = pts0
             labels = labels0
-            key = r'$a$' + f' = {alpha:.1f}, ' + r'$\upsilon$' + f' = {v1}, '
-            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.1f}'
+            if tab1_5:
+                key = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}, '
+                key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.2f}'
+            else:
+                key = f'change to reference: ' + r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}'
         else:
             change = ''
             if scen_ == 0:
-                change = r'$d$' + f' = {a}'
+                if tab1_5:
+                    change = r'$d$' + f' = {a:.2f}'
+                else:
+                    change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}' 
             elif scen_ == 1:
-                change = r'$a$' + f' = {alpha:.1f}'
+                if tab1_5:
+                    change = r'$a$' + f' = {alpha:.2f}'
+                else:
+                    change = r'$a$' + f' = {alpha:.2f}, ' + r'$d$' + f' = {a:.2f}'
             elif scen_ == 2:
-                change = r'$\upsilon$' + f' = {v1}'
+                if tab1_5:
+                    change = r'$\upsilon$' + f' = {v1}'
+                else:
+                    change = r'$a$' + f' = {alpha:.2f}, ' + r'$\omega$' + f' = {v2}'
             elif scen_ == 3:
-                change = r'$\omega$' + f' = {v2}'
+                if tab1_5:
+                    change = r'$\omega$' + f' = {v2}'
+                else:
+                    change = r'$d$' + f' = {a:.2f}, ' + r'$\omega$' + f' = {v2}' 
             elif scen_ == 4:
-                change = 'pref mix'
+                if tab1_5:
+                    if R_max == 4:
+                        change = 'pref mix'
+                    else: 
+                        change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+                else:
+                    change = r'$\upsilon$' + f' = {v1}, ' + r'$d$' + f' = {a:.2f}' 
             key = f'change to reference: {change}'
         key = f'{key}'
         scale = int(np.round((1 / STEP)))
@@ -613,8 +957,19 @@ def fig2(scenarios, pts0=None, labels0=None):
                     pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig2.pdf', format='pdf')
-    fig.savefig('Fig2.png', format='png')
+    from datetime import datetime
+    fname_addon = datetime.now().strftime("-%Y_%m_%d_%H_%M")
+    
+    fig_number = '2'
+    if not tab1_5:
+        fig_number = '4'
+
+    fig_variant = "_delta_"
+    if R_max == 4:
+        fig_variant = '_alpha_'
+
+    fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.png', format='png')
+    fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.pdf', format='pdf')
 
 
 def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
@@ -643,7 +998,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     df0.index = pd.Series([f'{float(c):.1f}' for c in list(df.index)], name='fv')
 
     sns.set(font_scale=1.0)
-    print(f'(I) max value: {df.max().max()}')
+    #print(f'(I) max value: {df.max().max()}')
     # bottom-right picture
     from matplotlib.colors import LogNorm
     df_plus = df.copy() + 1e-8
@@ -667,14 +1022,26 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     ax.plot([10 * scale + 1, 0], [0, 10 * scale + 1], 'w--')
     cnfont = {'fontname': 'Courier New', 'size': 8}
 
+    box_props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    arrow_props = dict(arrowstyle = "->", connectionstyle = "arc3, rad=0.1", fc = "white", alpha=0.95)
+    
     if pts is not None:
         for i, pt in enumerate(pts):
             ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, 'k.', mew=.6)
             ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, '.', mew=0, color=pt['color'])
     if labels is not None:
+    #    for i, label in enumerate(labels):
+    #        ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
+    #                color=label['color'],bbox = box_props, **cnfont)
         for i, label in enumerate(labels):
-            ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
-                    color=label['color'], **cnfont)
+            arrow_style = None
+            arrow_to = ((pts[i]['f']) * scale * 10 + 0.5, (1 - (pts[i]['fv'])) * scale * 10 + 0.5) 
+            if label.get('arrow1'):
+                arrow_style = arrow_props
+                arrow_to = (label['f1arr'] * scale * 10 + 0.5, (1 - label['fv1arr']) * scale * 10 + 0.5)
+            ax.annotate(label['signature'], xy = arrow_to , xycoords = 'data', 
+                xytext = ((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5), textcoords = 'data', **cnfont,
+                va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
 
 
     df = pd.DataFrame(top_left_heatmap)
@@ -685,7 +1052,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     df.columns = pd.Series([f'{float(c):.1f}' for c in list(df0.columns)], name='f/fv')
     df.index = pd.Series([f'{float(c):.1f}' for c in list(df0.index)], name='fv/f')
     # heatmap,  top-left side of the picture
-    print(f'(I_V) max value: {df.max().max()}')
+    #print(f'(I_V) max value: {df.max().max()}')
     df_plus = df.copy() + 1e-8
     h = sns.heatmap(df_plus, cbar=False, ax=ax, mask=(df == 0), cmap=cmap1, square=True,
                     norm=LogNorm(vmin=vmin, vmax=vmax),
@@ -756,11 +1123,45 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
             if label.get('special', False):
                 fv = label['fv2']
                 f = label['f2']
-            ax.text(fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5, label['signature'], color=label['color'],
-                    **cnfont)
+            arrow_style = None
+            arrow_to = ((pts[i]['fv']) * scale * 10 + 0.5, (1 - (pts[i]['f'])) * scale * 10 + 0.5) 
+            if label.get('arrow2'):
+                arrow_style = arrow_props
+                arrow_to = (label['fv2arr'] * scale * 10 + 0.5, (1 - label['f2arr']) * scale * 10 + 0.5)
+            ax.annotate(label['signature'], xy = arrow_to , xycoords = 'data', 
+                xytext = (fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5), textcoords = 'data', **cnfont,
+                va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
+ 
+#        for i, label in enumerate(labels):
+#            fv = label['fv']
+#            f = label['f']
+#            if label.get('special', False):
+#                fv = label['fv2']
+#                f = label['f2']
+#            ax.text(fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5, label['signature'], color=label['color'],
+#                    bbox = box_props, **cnfont)
+
+
 
 
 def heatmap4_calc(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.002, gamma=1/6):
+    
+    def heatmap4_calc_parallel(f):
+        res = [None] * len(f_list)
+        for idx, fv in enumerate(f_list):
+            i_val, iv_val = solve_i_iv(f=f, fv=fv, d=d, kappa=kappa, upsilon1=upsilon1, upsilon2=upsilon2, r_max=r_max,
+                                   mixing_type=mixing_type, alpha=alpha, gamma=gamma)
+            res[idx] = ( set_elem_heatmap(f, fv, i_val / 6 * 1000000), set_elem_heatmap(f, fv, iv_val / 6 * 1000000))
+        return res
+    
+    result = Parallel(n_jobs=MY_N_JOBS)(delayed(heatmap4_calc_parallel)(f) for f in f_list)
+    
+    flattened_result = flattened_list(result)
+
+    return [x for x, y in flattened_result], [y for x, y in flattened_result]
+
+
+def heatmap4_calc_old(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.002, gamma=1/6):
     i = []
     iv = []
     for f, fv in product(f_list, repeat=2):
@@ -817,7 +1218,7 @@ def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.
     return i, iv
 
 
-def fig3(scenarios, pts0=None, labels0=None):
+def fig3(scenarios, pts0=None, labels0=None, tab1_5 = True):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
     v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
@@ -852,7 +1253,9 @@ def fig3(scenarios, pts0=None, labels0=None):
     for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
         (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
         data = generate_data(a, alpha, v1, v2)
-        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
+        #print(scenario)
+        #heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
+        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
         bottom_right, top_left = heatmap4_calc(d=a, upsilon1=v1, upsilon2=v2, r_max=R_max,
                                                alpha=alpha, gamma=1/6, kappa=0.002, mixing_type=type_)
         pts = None
@@ -860,20 +1263,42 @@ def fig3(scenarios, pts0=None, labels0=None):
         if scen_ == '*':
             pts = pts0
             labels = labels0
-            key = r'$a$' + f' = {alpha:.1f}, ' + r'$\upsilon$' + f' = {v1}, '
-            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.1f}'
+            if tab1_5:
+                key = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}, '
+                key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.2f}'
+            else:
+                key = f'change to reference: ' + r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}'
         else:
             change = ''
             if scen_ == 0:
-                change = r'$d$' + f' = {a}'
+                if tab1_5:
+                    change = r'$d$' + f' = {a:.2f}'
+                else:
+                    change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}' 
             elif scen_ == 1:
-                change = r'$a$' + f' = {alpha:.1f}'
+                if tab1_5:
+                    change = r'$a$' + f' = {alpha:.2f}'
+                else:
+                    change = r'$a$' + f' = {alpha:.2f}, ' + r'$d$' + f' = {a:.2f}'
             elif scen_ == 2:
-                change = r'$\upsilon$' + f' = {v1}'
+                if tab1_5:
+                    change = r'$\upsilon$' + f' = {v1}'
+                else:
+                    change = r'$a$' + f' = {alpha:.2f}, ' + r'$\omega$' + f' = {v2}'
             elif scen_ == 3:
-                change = r'$\omega$' + f' = {v2}'
+                if tab1_5:
+                    change = r'$\omega$' + f' = {v2}'
+                else:
+                    change = r'$d$' + f' = {a:.2f}, ' + r'$\omega$' + f' = {v2}' 
             elif scen_ == 4:
-                change = 'pref mix'
+                if tab1_5:
+                    if R_max == 4:
+                        change = 'pref mix'
+                    else:
+                        change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+                else:
+                    change = r'$\upsilon$' + f' = {v1}, ' + r'$d$' + f' = {a:.2f}' 
+
             key = f'change to reference: {change}'
         key = f'{key}'
         scale = int(np.round((1 / STEP)))
@@ -883,34 +1308,164 @@ def fig3(scenarios, pts0=None, labels0=None):
                      pts=pts, labels=labels, cax2=cax2)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
-    fig.savefig('Fig3.png', format='png')
-    fig.savefig('Fig3.pdf', format='pdf')
+
+    from datetime import datetime
+    fname_addon = datetime.now().strftime("-%Y_%m_%d_%H_%M")
+    fig_number = '3'
+    fig_variant = '_delta_'
+    if not tab1_5:
+        fig_number = '5'
+    if R_max == 4:
+        fig_variant = '_alpha_'
+    fig.savefig('Fig' + fig_number + fig_variant + fname_addon + '.png', format='png')
+    fig.savefig('Fig' + fig_number + fig_variant + fname_addon + '.pdf', format='pdf')
 
 
 if __name__ == "__main__":
+    
     # execute only if run as a script
-    scenarios_ = [(0.1, 0.9, 0.004, 1 / 500, 'prop', 4, '*', 'a'),
-                  (0.1, 0.6, 0.004, 1 / 500, 'prop', 4, 1, 'b'),
-                  (0.1, 0.9, 0.008, 1 / 500, 'prop', 4, 2, 'c'),
-                  (0.1, 0.9, 0.004, 1 / 500, 'pref', 4, 4, 'd'),
-                  (0.3, 0.9, 0.004, 1 / 500, 'prop', 4, 0, 'e'),
-                  (0.1, 0.9, 0.004, 1 / 200, 'prop', 4, 3, 'f')
-                  ]
-    pts_ = [
-        {'f': 0.92, 'fv': 0.04, 'signature': '-+', 'color': 'violet'},
-        {'f': 0.63, 'fv': 0.05, 'signature': '+-+', 'color': 'orange'},
-        {'f': 0.45, 'fv': 0.32, 'signature': '+', 'color': 'red'},
-        {'f': 0.82, 'fv': 0.4, 'signature': '-', 'color': 'blue'},
-        {'f': 0.7, 'fv': 0.4, 'signature': '+-', 'color': 'deepskyblue'}
-    ]
-    labels_ = [
-        {'f': 0.83, 'fv': 0.13, 'signature': '-+', 'color': 'black', 'size': 6},
-        {'f': 0.6, 'fv': 0.26, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.62,
-         'fv2': 0.1},
-        {'f': 0.34, 'fv': 0.11, 'signature': '+', 'color': 'black', 'size': 6},
-        {'f': 0.86, 'fv': 0.55, 'signature': '-', 'color': 'black', 'size': 6},
-        {'f': 0.58, 'fv': 0.45, 'signature': '+-', 'color': 'black', 'size': 6}
-    ]
-    fig1b(scenarios=scenarios_, pts=pts_)
-    #fig2(scenarios=scenarios_, pts0=pts_, labels0=labels_)
-    #fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_)
+
+    # These are HTML symbols of "plus" and "minutes" to be used for signature labels
+    import html
+    PLUS = html.unescape('&#43;')
+    MINUS = html.unescape('&#8722;')
+
+    HSIG={'+': PLUS, '-': MINUS, '+-': PLUS+MINUS, '-+': MINUS+PLUS, '+-+': PLUS+MINUS+PLUS}
+
+    # Some flags I used to create specific heatmaps
+    alpha_ = False           # True if I plot the alpha variant
+    use_labels = True       # True if I want to add labels on the subpanel a)
+    use_points = True       # True if I want to add reference points on the subpanel a)
+    tab1_5_ = True           # True if I produce heatmaps corresponding to rows 1-5 of the article 
+                            # These are scenarios with one change to the reference setting point
+    parallel = True         # True if I want to run the code in parallel
+    all_figures = True      # True if I want to run all for figures (for both variants for both changes sets)
+
+    ## These are constants used in the article
+    d_low = 0.12    # never-vaccinated low, GB-like
+    d_high = 0.3    # never-vaccinated high, France-like
+    w_low = 1/500   # omega, natural immunity lasts 500 days
+    w_high = 1/200  # omega, natural immunity lasts 200 days
+    v_low = 0.004   # upsilon, low vaccination rate 0.004 European-like
+    v_high = 0.008  # upsilon, high vaccination rate
+
+    ## variant specific effficacies of vaccines
+    if alpha_:
+        a_low = 0.73 
+        a_high = 0.92
+    else:
+        a_low = 0.6
+        a_high = 0.79
+
+
+
+    ## If we don't run the code in parallel set names of the principal functions to the old, one-core version
+    if not parallel: 
+        signature_prop = signature_prop_old
+        heatmap_prop = heatmap_prop_old
+        reff_prop = reff_prop_old
+        heatmap4_calc = heatmap4_calc_old
+
+    
+    # clumsy way to specify all expected figures to be generated
+    which_heatmaps = [tab1_5_]
+    if all_figures: 
+        which_heatmaps = [True, False]
+    which_variants = [alpha_]
+    if all_figures:
+        which_variants = [True, False]
+
+
+    # iterate over all expected figures and generate them
+    for tab1_5, alpha in product(which_heatmaps, which_variants): 
+        if tab1_5:
+            if alpha:
+                scenarios_ = [(0.12, 0.92, 0.004, 1 / 500, 'prop', 4, '*', 'a'),
+                    (0.12, 0.73, 0.004, 1 / 500, 'prop', 4, 1, 'b'),
+                    (0.12, 0.92, 0.008, 1 / 500, 'prop', 4, 2, 'c'),
+                    (0.12, 0.92, 0.004, 1 / 500, 'pref', 4, 4, 'd'),
+                    (0.3, 0.92, 0.004, 1 / 500, 'prop', 4, 0, 'e'),
+                    (0.12, 0.92, 0.004, 1 / 200, 'prop', 4, 3, 'f')
+                    ]
+            else:
+                scenarios_ = [(0.12, 0.79, 0.004, 1 / 500, 'prop', 6, '*', 'a'),
+                    (0.12, 0.6, 0.004, 1 / 500, 'prop', 6, 1, 'b'),
+                    (0.12, 0.79, 0.008, 1 / 500, 'prop', 6, 2, 'c'),
+                    (0.12, 0.79, 0.004, 1 / 500, 'pref', 6, 4, 'd'),
+                    (0.3, 0.79, 0.004, 1 / 500, 'prop', 6, 0, 'e'),
+                    (0.12, 0.79, 0.004, 1 / 200, 'prop', 6, 3, 'f')
+                    ]
+        else:
+            if alpha:
+                scenarios_ = [(0.12, 0.73, 0.008, 1 / 500, 'prop', 4, '*', 'a'),
+                    (0.3, 0.73, 0.004, 1 / 500, 'prop', 4, 1, 'b'),
+                    (0.12, 0.73, 0.004, 1 / 200, 'prop', 4, 2, 'c'),
+                    (0.3, 0.92, 0.008, 1 / 500, 'prop', 4, 4, 'd'),
+                    (0.12, 0.92, 0.008, 1 / 200, 'prop', 4, 0, 'e'),
+                    (0.3, 0.92, 0.004, 1 / 200, 'prop', 4, 3, 'f')
+                    ]
+            else:
+                scenarios_ = [(0.12, 0.6, 0.008, 1 / 500, 'prop', 6, '*', 'a'),
+                    (0.3, 0.6, 0.004, 1 / 500, 'prop', 6, 1, 'b'),
+                    (0.12, 0.6, 0.004, 1 / 200, 'prop', 6, 2, 'c'),
+                    (0.3, 0.79, 0.008, 1 / 500, 'prop', 6, 4, 'd'),
+                    (0.12, 0.79, 0.008, 1 / 200, 'prop', 6, 0, 'e'),
+                    (0.3, 0.79, 0.004, 1 / 200, 'prop', 6, 3, 'f')
+                    ]
+
+
+        if use_labels and tab1_5: # we annotate only on the Fig 2 and 3 (which are rows 1-5 from the Table)
+            if alpha:
+                labels_ = [
+                    {'f': 0.83, 'fv': 0.13, 'signature': HSIG['-+'], 'color': 'black', 'size': 6},
+                    {'f': 0.6, 'fv': 0.26, 'signature': HSIG['+-+'], 'color': 'black', 'size': 6, 'special': True, 'f2': 0.62,
+                    'fv2': 0.1},
+                    {'f': 0.34, 'fv': 0.11, 'signature': HSIG['+'], 'color': 'black', 'size': 6},
+                    {'f': 0.86, 'fv': 0.55, 'signature': HSIG['-'], 'color': 'black', 'size': 6},
+                    {'f': 0.58, 'fv': 0.45, 'signature': HSIG['+-'], 'color': 'black', 'size': 6}
+                ]   
+            else:
+                labels_ = [
+                    {'f': 0.93, 'fv': 0.23, 'signature': HSIG['-+'], 'color': 'black', 'size': 6},
+                    {'f': 0.78, 'fv': 0.06, 'signature': HSIG['+-+'], 'color': 'black', 'size': 6, 'special': True, 'f2': 0.77,
+                    'fv2': 0.105, 'arrow1': True, 'f1arr' : 0.81, 'fv1arr' : 0.32, 'arrow2': True, 'f2arr' : 0.81, 'fv2arr': 0.35},
+                    {'f': 0.3, 'fv': 0.06, 'signature': HSIG['+'], 'color': 'black', 'size': 6},
+                    {'f': 0.93, 'fv': 0.81, 'signature': HSIG['-'], 'color': 'black', 'size': 6},
+                    {'f': 0.93, 'fv': 0.53, 'signature': HSIG['+-'], 'color': 'black', 'size': 6, 
+                    'arrow1': True, 'f1arr': 0.78, 'fv1arr': 0.69, 'arrow2': True, 'f2arr': 0.78, 'fv2arr': 0.69}
+                ]   
+        else:
+            labels_ = None
+
+        if use_points and tab1_5: # we annotate only on the Fig 2 and 3 (which are rows 1-5 from the Table)
+            if alpha:
+                pts_ = [
+                    {'f': 0.92, 'fv': 0.04, 'signature': '-+', 'color': 'violet'},
+                    {'f': 0.63, 'fv': 0.05, 'signature': '+-+', 'color': 'orange'},
+                    {'f': 0.45, 'fv': 0.32, 'signature': '+', 'color': 'red'},
+                    {'f': 0.82, 'fv': 0.4, 'signature': '-', 'color': 'blue'},
+                    {'f': 0.7, 'fv': 0.4, 'signature': '+-', 'color': 'deepskyblue'}
+                ]
+            else:
+                pts_ = [
+                    {'f': 0.92, 'fv': 0.38, 'signature': '-+', 'color': 'violet'},
+                    {'f': 0.77, 'fv': 0.55, 'signature': '+-+', 'color': 'orange'},
+                    {'f': 0.77, 'fv': 0.38, 'signature': '+', 'color': 'red'},
+                    {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
+                    {'f': 0.77, 'fv': 0.71, 'signature': '+-', 'color': 'deepskyblue'}
+                ]
+        else:
+            pts_ = None
+
+        
+        start_time = time.time()
+        #fig1b(scenarios=scenarios_, pts=pts_)
+        fig2(scenarios=scenarios_, pts0=pts_, labels0=labels_, tab1_5 = tab1_5)
+        diff_time = time.time() - start_time 
+        print("---- Fig. generated after %s minutes and %s seconds ----" % (diff_time // 60, round(diff_time % 60)) )
+        
+        start_time = time.time()
+        fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_, tab1_5 = tab1_5)
+        diff_time = time.time() - start_time 
+        print("---- Fig. generated after %s minutes and %s seconds ----" % (diff_time // 60, round(diff_time % 60)) )
+        
