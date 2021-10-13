@@ -69,7 +69,7 @@ def split_periods(array, delta=0.1):
     return result
 
 
-def doubling_time(data, pts, R_max, ax=None):
+def doubling_time(data, pts, R_max, ax=None, save_timelines=True):
     if ax is None:
         print('no ax given, return!')
         return
@@ -92,7 +92,8 @@ def doubling_time(data, pts, R_max, ax=None):
             ax.plot(above_100, [100] * len(above_100), '--', c=color, linewidth=0.5)
         data['doubling_time'] = data['doubling_time'].apply(lambda x: np.nan if x > 100 else -np.nan if x < 0 else x)
         data.plot('time', 'doubling_time', ax=ax, label=r'$\mathtt{' + f'{signature}' + r'}$', color=color, linewidth=0.5)
-
+        if save_timelines:
+            data.to_csv(f'scenario_{signature}__line_{color}_doubling_time.csv', index=False)
     ax.set_ylabel('D', fontdict=fontdict, labelpad=0)
     ax.set_xlabel('time', fontdict=fontdict)
     legend = ax.legend(ncol=2, fontsize=FONT_SIZE, bbox_to_anchor=[1.1, -0.5], title='Scenarios')
@@ -275,7 +276,47 @@ def signature_calc(data, type_, R_max, d, gamma=GAMMA):
     else:
         return signature_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
-def heatmap_pref2_old(data, R_max, d, gamma=GAMMA):
+x00 = 9999999
+def update_heatmap(heatmap, data, f, fv, pref=False):
+    global x00
+    cond = 1
+    field = 'Reff'
+    if pref:
+        cond = 0
+        field = 'lambda_m'
+    if len(data[data[field] > cond]) > 0:
+        first_above_1 = data[data[field] > cond].time.to_numpy()[0]
+        if first_above_1 > 0:
+            # started as subcritical, will be overcritical
+            heatmap.append(set_elem_heatmap(f, fv, first_above_1))
+        else:
+            # started as overcritical...
+            if len(data[data[field] < cond]) > 0:
+                first_below_1 = data[data[field] < cond].time.to_numpy()[0]
+                first_below_1_id = data[data[field] < cond].index[0]
+                data2 = data[first_below_1_id:]
+                if len(data2[data2[field] > cond]) > 0:
+                    # ...will be overcritical again
+                    first_exit_above_1 = data2[data2[field] > cond].time.to_numpy()[0]
+                    if first_exit_above_1 < x00:
+                        x00 = first_exit_above_1
+                        print(x00)
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, first_exit_above_1))
+                else:
+                    # ...not overcritical again within 2 years
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, MAX_VAL + first_below_1))
+            else:
+                # ... always overcritical
+                heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))
+    else:
+        # under-critical
+        heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))
+    return heatmap
+
+
+def heatmap_pref2(data, R_max, d, gamma=GAMMA):
     heatmap = []
     r_max = R_max
     for f, fv in product(f_list, repeat=2):
@@ -296,33 +337,7 @@ def heatmap_pref2_old(data, R_max, d, gamma=GAMMA):
         t = a11 + a22
         det = a11 * a22 - a12 * a21
         data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -334,33 +349,7 @@ def heatmap_pref(data):
         data['lambda_m'] = S * (1 - f) - 0.5 + (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv + (
                 4 * (1 - f) ** 3 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv * S + (
                 (1 - f) * S - (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv) ** 2) ** 0.5
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -471,33 +460,7 @@ def heatmap_prop_old(data, R_max):
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
                 (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']) ** 2 + 4 * data['S'] * data['Sv'] * R1(f,
                                                                                                                R_max) ** 2) ** 0.5)
-        if len(data[data['Reff'] > 1]) > 0:
-            first_above_1 = data[data['Reff'] > 1].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['Reff'] < 1]) > 0:
-                    first_below_1 = data[data['Reff'] < 1].time.to_numpy()[0]
-                    first_below_1_id = data[data['Reff'] < 1].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['Reff'] > 1]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['Reff'] > 1].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=False)
     return heatmap
 
 
@@ -831,7 +794,7 @@ def fig1(scenarios, pts):
 
     (a, alpha, v1, v2, type_, R_max, _, _) = scenarios[0]
     data = generate_data(a, alpha, v1, v2)
-    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
+    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2, save_timelines=True)
     plot_pts(data=data, pts=pts, R_max=R_max, ax=ax1, save_timelines=True)
     fig.savefig('Fig1.png')
     fig.savefig('Fig1.pdf')
@@ -1468,4 +1431,103 @@ if __name__ == "__main__":
         fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_, tab1_5 = tab1_5)
         diff_time = time.time() - start_time 
         print("---- Fig. generated after %s minutes and %s seconds ----" % (diff_time // 60, round(diff_time % 60)) )
-        
+
+
+def old_main():
+    alpha_pfizer = 0.92
+    alpha_az = 0.73
+    denials_gb = 0.12
+    denials_fr = 0.3
+    waning_time1 = 1/500
+    waning_time2 = 1/200
+    omega1_low = 0.004
+    omega1_high = 0.008
+    R_0_alpha = 4
+    scenarios_alpha = [
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, '*', 'a'),
+        (denials_gb, alpha_az, omega1_low, waning_time1, 'prop', R_0_alpha, 1, 'b'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_alpha, 2, 'c'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'pref', R_0_alpha, 4, 'd'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, 0, 'e'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_alpha, 3, 'f')
+    ]
+    labels_alpha = None
+
+    pts_alpha = [
+        {'f': 0.92, 'fv': 0.04, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.63, 'fv': 0.05, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.45, 'fv': 0.32, 'signature': '+', 'color': 'red'},
+        {'f': 0.82, 'fv': 0.4, 'signature': '-', 'color': 'blue'},
+        {'f': 0.7, 'fv': 0.4, 'signature': '+-', 'color': 'deepskyblue'}
+    ]
+    # We don't need it now
+    pts_alpha = None
+
+    delta_pfizer = 0.79
+    delta_az = 0.6
+    R_0_delta = 6
+    scenarios_delta = [
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, '*', 'a'),
+        (denials_gb, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 1, 'b'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 2, 'c'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'pref', R_0_delta, 4, 'd'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, 0, 'e'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 3, 'f')
+    ]
+    pts_delta_adjusted = [
+        {'f': 0.77, 'fv': 0.38, 'signature': '+', 'color': 'red'},
+        {'f': 0.77, 'fv': 0.55, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.92, 'fv': 0.38, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.77, 'fv': 0.71, 'signature': '+-', 'color': 'deepskyblue'},
+        {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
+
+    ]
+    labels_delta = [
+        {'f': 0.88, 'fv': 0.3, 'signature': '-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.88,
+         'fv2': 0.28},
+        {'f': 0.44, 'fv': 0.78, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.44},
+        {'f': 0.45, 'fv': 0.2, 'signature': '+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.52,
+         'fv2': 0.2},
+        {'f': 0.9, 'fv': 0.76, 'signature': '-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.92,
+         'fv2': 0.71},
+        {'f': 0.72, 'fv': 0.68, 'signature': '+-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.67}
+    ]
+
+    scenarios_delta_2 = [
+        (denials_gb, delta_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
+        (denials_fr, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
+        (denials_gb, delta_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
+        (denials_fr, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+    ]
+    labels_delta_2 = None
+    pts_delta_adjusted_2 = None
+
+    scenarios_alpha_2 = [
+        (denials_gb, alpha_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
+        (denials_fr, alpha_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
+        (denials_gb, alpha_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
+        (denials_fr, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+    ]
+    labels_alpha_2 = None
+    pts_alpha_2 = None
+
+    fig1(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+    fig1b(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+
+    fig2(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta)
+    fig3(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta)
+
+    fig2(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2)
+    fig3(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2)
+
+    fig2(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2)
+    fig3(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2)
+
+    fig2(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha)
+    fig3(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha)
