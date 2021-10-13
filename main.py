@@ -202,6 +202,45 @@ def signature_calc(data, type_, R_max, d, gamma=GAMMA):
     else:
         return signature_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
+x00 = 9999999
+def update_heatmap(heatmap, data, f, fv, pref=False):
+    global x00
+    cond = 1
+    field = 'Reff'
+    if pref:
+        cond = 0
+        field = 'lambda_m'
+    if len(data[data[field] > cond]) > 0:
+        first_above_1 = data[data[field] > cond].time.to_numpy()[0]
+        if first_above_1 > 0:
+            # started as subcritical, will be overcritical
+            heatmap.append(set_elem_heatmap(f, fv, first_above_1))
+        else:
+            # started as overcritical...
+            if len(data[data[field] < cond]) > 0:
+                first_below_1 = data[data[field] < cond].time.to_numpy()[0]
+                first_below_1_id = data[data[field] < cond].index[0]
+                data2 = data[first_below_1_id:]
+                if len(data2[data2[field] > cond]) > 0:
+                    # ...will be overcritical again
+                    first_exit_above_1 = data2[data2[field] > cond].time.to_numpy()[0]
+                    if first_exit_above_1 < x00:
+                        x00 = first_exit_above_1
+                        print(x00)
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, first_exit_above_1))
+                else:
+                    # ...not overcritical again within 2 years
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, MAX_VAL + first_below_1))
+            else:
+                # ... always overcritical
+                heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))
+    else:
+        # under-critical
+        heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))
+    return heatmap
+
 
 def heatmap_pref2(data, R_max, d, gamma=GAMMA):
     heatmap = []
@@ -224,33 +263,7 @@ def heatmap_pref2(data, R_max, d, gamma=GAMMA):
         t = a11 + a22
         det = a11 * a22 - a12 * a21
         data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -262,33 +275,7 @@ def heatmap_pref(data):
         data['lambda_m'] = S * (1 - f) - 0.5 + (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv + (
                 4 * (1 - f) ** 3 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv * S + (
                 (1 - f) * S - (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv) ** 2) ** 0.5
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -298,33 +285,7 @@ def heatmap_prop(data, R_max):
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
                 (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']) ** 2 + 4 * data['S'] * data['Sv'] * R1(f,
                                                                                                                R_max) ** 2) ** 0.5)
-        if len(data[data['Reff'] > 1]) > 0:
-            first_above_1 = data[data['Reff'] > 1].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['Reff'] < 1]) > 0:
-                    first_below_1 = data[data['Reff'] < 1].time.to_numpy()[0]
-                    first_below_1_id = data[data['Reff'] < 1].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['Reff'] > 1]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['Reff'] > 1].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=False)
     return heatmap
 
 
@@ -1075,6 +1036,14 @@ if __name__ == "__main__":
         {'f': 0.6, 'fv': 0.55, 'signature': '+', 'color': 'red'},
         {'f': 0.9, 'fv': 0.7, 'signature': '-', 'color': 'blue'},
         {'f': 0.7, 'fv': 0.78, 'signature': '+-', 'color': 'deepskyblue'}
+    ]
+    pts_delta_adjusted = [
+        {'f': 0.77, 'fv': 0.38, 'signature': '+', 'color': 'red'},
+        {'f': 0.77, 'fv': 0.55, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.92, 'fv': 0.38, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.77, 'fv': 0.71, 'signature': '+-', 'color': 'deepskyblue'},
+        {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
+
     ]
     labels_delta = [
         {'f': 0.88, 'fv': 0.3, 'signature': '-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.88,
