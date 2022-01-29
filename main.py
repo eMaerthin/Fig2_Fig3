@@ -480,7 +480,7 @@ def heatmap_calc(data, type_, R_max, d, gamma=GAMMA):
         return heatmap_pref2(data, R_max=R_max, d=d, gamma=gamma)
 
 def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
-                labels=None, cax1=None, cax2=None, cax3=None):
+                labels=None, cax1=None, cax2=None, cax3=None, scen_id='', prefix=''):
     if ax is None:
         return
 
@@ -501,6 +501,11 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
     cmap3 = cm.get_cmap('seismic')
 
     df = pd.DataFrame(heatmap)
+    df[np.logical_and(df['value'] >= -1, df['value'] < MAX_VAL)].replace(-1, 0).to_csv(f'{prefix}_fig2_days-until-overcritical_{scen_id}.csv')
+    df2 = df.copy()
+    df2['value'] -= MAX_VAL
+    df2[df2['value'] >= 0].to_csv(f'{prefix}_fig2_days-until-subcritical_{scen_id}.csv')
+
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
@@ -551,6 +556,8 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
                 va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
 
     df = pd.DataFrame(reff_heatmap)
+
+    df.to_csv(f'{prefix}_fig2_asymptotic-R*_{scen_id}.csv')
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
@@ -922,7 +929,7 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
         scale = int(np.round((1 / STEP)))
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure(heatmap, reff_heatmap, heatmap_signature, key=key, ax=inset_axes, add_title=True,
-                    pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3)
+                    pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3, scen_id=f'{letter}_{scen_}', prefix=prefix)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
     from datetime import datetime
@@ -939,9 +946,8 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
     fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.png', format='png')
     fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.pdf', format='pdf')
 
-
-def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
-                 labels=None, cax2=None):
+def plot_figure3(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
+                 labels=None, cax2=None, scen_id='', prefix=''):
     if ax is None:
         return
 
@@ -960,6 +966,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     cmap1 = cm.get_cmap('plasma_r')
 
     df = pd.DataFrame(bottom_right_heatmap)
+    df.to_csv(f'{prefix}_fig3_endemic_infs_I_{scen_id}.csv')
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
@@ -974,7 +981,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     vmax = 1000 + 1e-8
     sns.heatmap(df_plus, ax=ax, cmap=cmap1, square=True, xticklabels=scale,
                 norm=LogNorm(vmin=vmin, vmax=vmax), vmin=vmin, vmax=vmax,
-                yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I_V',
+                yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I',
                                                                     'orientation': 'vertical'})
     if add_title:
         ax.set_title(key, fontdict=fontdict)
@@ -1013,6 +1020,8 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
 
 
     df = pd.DataFrame(top_left_heatmap)
+    df.to_csv(f'{prefix}_fig3_endemic_infs_IV_{scen_id}.csv')
+
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
@@ -1026,7 +1035,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
                     norm=LogNorm(vmin=vmin, vmax=vmax),
                     vmin=vmin, vmax=vmax,
                     xticklabels=int(scale), yticklabels=int(scale), fmt='.1f', cbar_kws={
-            'label': 'endemic state - I',
+            'label': 'endemic state - I_V',
             'orientation': 'horizontal'})
     cb = h.figure.colorbar(h.collections[0], cax=cax2,
                            label='Daily cases in the endemic state',
@@ -1097,7 +1106,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
 
 
 def plot_figure_hosp(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None,
-                     add_title=True, pts=None, labels=None, cax2=None):
+                     add_title=True, pts=None, labels=None, cax2=None, prefix='', scen_id=''):
     if ax is None:
         return
 
@@ -1116,7 +1125,10 @@ def plot_figure_hosp(bottom_right_heatmap, top_left_heatmap, heatmap_signature, 
     cmap1 = cm.get_cmap('cividis_r')
 
     df = pd.DataFrame(bottom_right_heatmap)
+    df.to_csv(f'{prefix}_fig4_endemic_hosp_IV_{scen_id}.csv')
+
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
+
     df.sort_index(level=0, ascending=False, inplace=True)
     df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
     df0.index = pd.Series([f'{float(c):.1f}' for c in list(df.index)], name='fv')
@@ -1125,6 +1137,7 @@ def plot_figure_hosp(bottom_right_heatmap, top_left_heatmap, heatmap_signature, 
     print(f'(H_1 + H_2) max value: {df.max().max()}')
     # bottom-right picture
     from matplotlib.colors import LogNorm
+
     df_plus = df.copy() + 1e-8
     vmin = 1 + 1e-8
     vmax = 100 + 1e-8
@@ -1157,7 +1170,9 @@ def plot_figure_hosp(bottom_right_heatmap, top_left_heatmap, heatmap_signature, 
 
 
     df = pd.DataFrame(top_left_heatmap)
+    df.to_csv(f'{prefix}_fig4_endemic_hosp_I_{scen_id}.csv')
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
+
     df.sort_index(level=0, ascending=False, inplace=True)
     df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
 
@@ -1532,7 +1547,7 @@ def fig3(scenarios, pts0=None, labels0=None, tab1_5 = True):
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure4(bottom_right, top_left,
                      heatmap_signature, key=key, ax=inset_axes, add_title=True,
-                     pts=pts, labels=labels, cax2=cax2)
+                     pts=pts, labels=labels, cax2=cax2, scen_id=f'{letter}_{scen_}', prefix=prefix)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
 
@@ -1625,7 +1640,7 @@ def fig_hosp(scenarios, prefix=''):
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure_hosp(bottom_right, top_left,
                          heatmap_signature, key=key, ax=inset_axes, add_title=True,
-                         pts=pts, labels=labels, cax2=cax2)
+                         pts=pts, labels=labels, cax2=cax2, prefix=prefix, scen_id=f'{letter}_{scen_}')
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
     fig.savefig(f'{prefix}Fig_hosp.png', format='png')
@@ -1855,12 +1870,12 @@ def old_main():
     pts_delta_adjusted_2 = None
 
     scenarios_alpha_2 = [
-        (denials_gb, alpha_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
-        (denials_fr, alpha_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
-        (denials_gb, alpha_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
-        (denials_fr, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
-        (denials_gb, alpha_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
-        (denials_fr, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+        (denials_gb, alpha_az, omega1_high, waning_time1, 'prop', R_0_alpha, 11, 'a'),
+        (denials_fr, alpha_az, omega1_low, waning_time1, 'prop', R_0_alpha, 12, 'b'),
+        (denials_gb, alpha_az, omega1_low, waning_time2, 'prop', R_0_alpha, 13, 'c'),
+        (denials_fr, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_alpha, 14, 'd'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time2, 'prop', R_0_alpha, 15, 'e'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_alpha, 16, 'f')
     ]
     labels_alpha_2 = None
     pts_alpha_2 = None
