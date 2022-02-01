@@ -69,7 +69,7 @@ def split_periods(array, delta=0.1):
     return result
 
 
-def doubling_time(data, pts, R_max, ax=None):
+def doubling_time(data, pts, R_max, ax=None, save_timelines=True):
     if ax is None:
         print('no ax given, return!')
         return
@@ -92,7 +92,8 @@ def doubling_time(data, pts, R_max, ax=None):
             ax.plot(above_100, [100] * len(above_100), '--', c=color, linewidth=0.5)
         data['doubling_time'] = data['doubling_time'].apply(lambda x: np.nan if x > 100 else -np.nan if x < 0 else x)
         data.plot('time', 'doubling_time', ax=ax, label=r'$\mathtt{' + f'{signature}' + r'}$', color=color, linewidth=0.5)
-
+        if save_timelines:
+            data.to_csv(f'scenario_{signature}__line_{color}_doubling_time.csv', index=False)
     ax.set_ylabel('D', fontdict=fontdict, labelpad=0)
     ax.set_xlabel('time', fontdict=fontdict)
     legend = ax.legend(ncol=2, fontsize=FONT_SIZE, bbox_to_anchor=[1.1, -0.5], title='Scenarios')
@@ -275,7 +276,47 @@ def signature_calc(data, type_, R_max, d, gamma=GAMMA):
     else:
         return signature_pref2(data=data, R_max=R_max, d=d, gamma=gamma)
 
-def heatmap_pref2_old(data, R_max, d, gamma=GAMMA):
+x00 = 9999999
+def update_heatmap(heatmap, data, f, fv, pref=False):
+    global x00
+    cond = 1
+    field = 'Reff'
+    if pref:
+        cond = 0
+        field = 'lambda_m'
+    if len(data[data[field] > cond]) > 0:
+        first_above_1 = data[data[field] > cond].time.to_numpy()[0]
+        if first_above_1 > 0:
+            # started as subcritical, will be overcritical
+            heatmap.append(set_elem_heatmap(f, fv, first_above_1))
+        else:
+            # started as overcritical...
+            if len(data[data[field] < cond]) > 0:
+                first_below_1 = data[data[field] < cond].time.to_numpy()[0]
+                first_below_1_id = data[data[field] < cond].index[0]
+                data2 = data[first_below_1_id:]
+                if len(data2[data2[field] > cond]) > 0:
+                    # ...will be overcritical again
+                    first_exit_above_1 = data2[data2[field] > cond].time.to_numpy()[0]
+                    if first_exit_above_1 < x00:
+                        x00 = first_exit_above_1
+                        print(x00)
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, first_exit_above_1))
+                else:
+                    # ...not overcritical again within 2 years
+                    heatmap.append(
+                        set_elem_heatmap(f, fv, MAX_VAL + first_below_1))
+            else:
+                # ... always overcritical
+                heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))
+    else:
+        # under-critical
+        heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))
+    return heatmap
+
+
+def heatmap_pref2(data, R_max, d, gamma=GAMMA):
     heatmap = []
     r_max = R_max
     for f, fv in product(f_list, repeat=2):
@@ -296,33 +337,7 @@ def heatmap_pref2_old(data, R_max, d, gamma=GAMMA):
         t = a11 + a22
         det = a11 * a22 - a12 * a21
         data['lambda_m'] = (t + np.sqrt(t ** 2 - 4 * det)) / 2
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -334,33 +349,7 @@ def heatmap_pref(data):
         data['lambda_m'] = S * (1 - f) - 0.5 + (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv + (
                 4 * (1 - f) ** 3 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv * S + (
                 (1 - f) * S - (1 - fv) ** 2 / ((1 - f) * S + (1 - fv) * (1 - S)) * Sv) ** 2) ** 0.5
-        if len(data[data['lambda_m'] > 0]) > 0:
-            first_above_1 = data[data['lambda_m'] > 0].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['lambda_m'] < 0]) > 0:
-                    first_below_1 = data[data['lambda_m'] < 0].time.to_numpy()[0]
-                    first_below_1_id = data[data['lambda_m'] < 0].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['lambda_m'] > 0]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['lambda_m'] > 0].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=True)
     return heatmap
 
 
@@ -471,33 +460,7 @@ def heatmap_prop_old(data, R_max):
         data['Reff'] = (0.5 * (R1(f, R_max) * data['S'] + R2(fv, R_max) * data['Sv']) + 0.5 * (
                 (R1(f, R_max) * data['S'] - R2(fv, R_max) * data['Sv']) ** 2 + 4 * data['S'] * data['Sv'] * R1(f,
                                                                                                                R_max) ** 2) ** 0.5)
-        if len(data[data['Reff'] > 1]) > 0:
-            first_above_1 = data[data['Reff'] > 1].time.to_numpy()[0]
-            if first_above_1 > 0:
-                # started as subcritical, will be overcritical
-                heatmap.append(set_elem_heatmap(f, fv, first_above_1))  # [(f, fv)] = first_above_1
-            else:
-                # started as overcritical...
-                if len(data[data['Reff'] < 1]) > 0:
-                    first_below_1 = data[data['Reff'] < 1].time.to_numpy()[0]
-                    first_below_1_id = data[data['Reff'] < 1].index[0]
-                    data2 = data[first_below_1_id:]
-                    if len(data2[data2['Reff'] > 1]) > 0:
-                        # ...will be overcritical again
-                        first_exit_above_1 = data2[data2['Reff'] > 1].time.to_numpy()[0]
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, first_exit_above_1))  # heatmap[key][(f, fv)] = first_exit_above_1
-                    else:
-                        # ...not overcritical again within 2 years
-                        heatmap.append(
-                            set_elem_heatmap(f, fv, MAX_VAL + first_below_1))  # np.nan))#heatmap[key][(f, fv)] = np.nan
-                else:
-                    # ... always overcritical
-                    heatmap.append(set_elem_heatmap(f, fv, MIN_VAL))  # heatmap[key][(f, fv)] = np.nan
-
-        else:
-            # under-critical
-            heatmap.append(set_elem_heatmap(f, fv, MAX_VAL))  # np.nan))#heatmap[key][(f, fv)] = np.nan
+        heatmap = update_heatmap(heatmap=heatmap, data=data, f=f, fv=fv, pref=False)
     return heatmap
 
 
@@ -517,7 +480,7 @@ def heatmap_calc(data, type_, R_max, d, gamma=GAMMA):
         return heatmap_pref2(data, R_max=R_max, d=d, gamma=gamma)
 
 def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
-                labels=None, cax1=None, cax2=None, cax3=None):
+                labels=None, cax1=None, cax2=None, cax3=None, scen_id='', prefix=''):
     if ax is None:
         return
 
@@ -538,6 +501,11 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
     cmap3 = cm.get_cmap('seismic')
 
     df = pd.DataFrame(heatmap)
+    df[np.logical_and(df['value'] >= -1, df['value'] < MAX_VAL)].replace(-1, 0).to_csv(f'{prefix}_fig2_days-until-overcritical_{scen_id}.csv')
+    df2 = df.copy()
+    df2['value'] -= MAX_VAL
+    df2[df2['value'] >= 0].to_csv(f'{prefix}_fig2_days-until-subcritical_{scen_id}.csv')
+
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
@@ -588,6 +556,8 @@ def plot_figure(heatmap, reff_heatmap, heatmap_signature, key='', ax=None, add_t
                 va = 'center', ha = 'center', bbox = box_props, arrowprops = arrow_style)
 
     df = pd.DataFrame(reff_heatmap)
+
+    df.to_csv(f'{prefix}_fig2_asymptotic-R*_{scen_id}.csv')
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
@@ -831,7 +801,7 @@ def fig1(scenarios, pts):
 
     (a, alpha, v1, v2, type_, R_max, _, _) = scenarios[0]
     data = generate_data(a, alpha, v1, v2)
-    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2)
+    doubling_time(data=data, pts=pts, R_max=R_max, ax=ax2, save_timelines=True)
     plot_pts(data=data, pts=pts, R_max=R_max, ax=ax1, save_timelines=True)
     fig.savefig('Fig1.png')
     fig.savefig('Fig1.pdf')
@@ -900,6 +870,7 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
     rc('font', **{'family': 'sans-serif', 'sans-serif': ['Arial'], 'size': FONT_SIZE})
     matplotlib.rcParams.update({'font.size': FONT_SIZE})
     for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
+
         (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
         asymptotic_data_point = asymptotic_data(a, alpha, v1, v2)
         #reff_heatmap = reff_both(asymptotic_data_point, R_max, type_) # old version before new preferential
@@ -908,7 +879,11 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
         #heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max)
         #heatmap = heatmap_calc(data, type_=type_, R_max=R_max)
         heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
+        #area = len([1 for elem in heatmap_signature if elem['value'].endswith('-')]) / len(heatmap_signature)
+        #print(scenario, area)
+        #continue
         heatmap = heatmap_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
+        #exit()
         pts = None
         labels = None
         if scen_ == '*':
@@ -954,7 +929,7 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
         scale = int(np.round((1 / STEP)))
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure(heatmap, reff_heatmap, heatmap_signature, key=key, ax=inset_axes, add_title=True,
-                    pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3)
+                    pts=pts, labels=labels, cax1=cax1, cax2=cax2, cax3=cax3, scen_id=f'{letter}_{scen_}', prefix=prefix)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
     from datetime import datetime
@@ -971,9 +946,8 @@ def fig2(scenarios, pts0=None, labels0=None, tab1_5 = True):
     fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.png', format='png')
     fig.savefig('Fig'+ fig_number + fig_variant + fname_addon +'.pdf', format='pdf')
 
-
-def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
-                 labels=None, cax2=None):
+def plot_figure3(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None, add_title=True, pts=None,
+                 labels=None, cax2=None, scen_id='', prefix=''):
     if ax is None:
         return
 
@@ -992,6 +966,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     cmap1 = cm.get_cmap('plasma_r')
 
     df = pd.DataFrame(bottom_right_heatmap)
+    df.to_csv(f'{prefix}_fig3_endemic_infs_I_{scen_id}.csv')
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
@@ -1006,7 +981,7 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
     vmax = 1000 + 1e-8
     sns.heatmap(df_plus, ax=ax, cmap=cmap1, square=True, xticklabels=scale,
                 norm=LogNorm(vmin=vmin, vmax=vmax), vmin=vmin, vmax=vmax,
-                yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I_V',
+                yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I',
                                                                     'orientation': 'vertical'})
     if add_title:
         ax.set_title(key, fontdict=fontdict)
@@ -1045,6 +1020,8 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
 
 
     df = pd.DataFrame(top_left_heatmap)
+    df.to_csv(f'{prefix}_fig3_endemic_infs_IV_{scen_id}.csv')
+
     df = df.pivot(index='fv', columns='f', values='value').astype(float)
     df.sort_index(level=0, ascending=False, inplace=True)
     df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
@@ -1058,12 +1035,162 @@ def plot_figure4(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key=
                     norm=LogNorm(vmin=vmin, vmax=vmax),
                     vmin=vmin, vmax=vmax,
                     xticklabels=int(scale), yticklabels=int(scale), fmt='.1f', cbar_kws={
-            'label': 'endemic state - I',
+            'label': 'endemic state - I_V',
             'orientation': 'horizontal'})
     cb = h.figure.colorbar(h.collections[0], cax=cax2,
                            label='Daily cases in the endemic state',
-                           orientation='horizontal', extend='both', ticks=[vmin, 100 + 1e-8, vmax])
-    cb.ax.set_xticklabels([r'$\leq$' + '10/mln', '100/mln', r'$\geq$' + '1000/mln'])
+                           orientation='horizontal', extend='both', ticks=[vmin, 100 + 1e-8, 1000 + 1e-8, vmax])
+    cb.ax.set_xticklabels([r'$\leq$' + '10/mln', '100/mln', '', r'$\geq$' + '2000/mln'])
+
+    cb.ax.tick_params(labelsize=FONT_SIZE, width=0.5, length=4, pad=2)  # Set the colorbar scale font size.
+    text = cb.ax.xaxis.label
+    text.set_font_properties(font)
+
+    z0 = np.flipud(np.tril(np.rot90(z0, k=3)))
+    df0[:] = z0
+    df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
+    df0.index = pd.Series([f'{float(c):.1f}' for c in list(df.index)], name='fv')
+
+    # black separation line between phases - top left side of the picture
+    sns.heatmap(df0, ax=ax, mask=~z0, vmin=0, vmax=1, cmap='gray_r', square=True, xticklabels=False, yticklabels=False,
+                cbar=False)
+
+    def forward_right(x):
+        return 1 - (x - 0.5) / scale / 10
+
+    def forward_top(x):
+        return (x - 0.5) / scale / 10
+
+    secax = ax.secondary_xaxis('top')
+    secax.set_xlabel(r'$f_v$', fontdict=fontdict, labelpad=14)
+    secax.set_xticks([])
+    secay = ax.secondary_yaxis('right')
+    secay.set_ylabel(r'$f_v$', fontdict=fontdict, labelpad=12)
+    secay.set_yticks([])
+    ax.set_ylabel('f', fontdict=fontdict, labelpad=0)
+    ax.set_xlabel('f', fontdict=fontdict, labelpad=0)
+    series = list(np.arange(0.5, scale * 10 + 0.51, 2 * scale))
+    xseries = series
+    yseries = series
+    ax.set_xticks(xseries)
+    ax.set_yticks(yseries)
+    yticks = list([f'{forward_right(x):.1f}' for x in ax.get_yticks()])
+    xticks = list([f'{forward_top(x):.1f}' for x in ax.get_xticks()])
+    ax.set_yticklabels(yticks, size=FONT_SIZE)
+    ax.set_xticklabels(xticks, size=FONT_SIZE)
+    for ax_ in [ax]:
+        ax_.tick_params(left=True, labelleft=True, top=True, labeltop=True,
+                        right=True, labelright=True, bottom=True, labelbottom=True, pad=0)
+    for ax_ in [secax, secay]:
+        ax_.tick_params(left=False, labelleft=True, top=False, labeltop=True,
+                        right=False, labelright=True, bottom=False, labelbottom=True, pad=0)
+    plt.sca(ax)
+    plt.xticks(rotation=0)
+    plt.yticks(rotation=90)
+    ax.xaxis.set_tick_params(width=0.5, length=2, pad=2)
+    ax.yaxis.set_tick_params(width=0.5, length=2, pad=2)
+    if pts is not None:
+        for i, pt in enumerate(pts):
+            ax.plot((pt['fv']) * scale * 10 + 0.5, (1 - (pt['f'])) * scale * 10 + 0.5, 'k.', mew=.6)
+            ax.plot((pt['fv']) * scale * 10 + 0.5, (1 - (pt['f'])) * scale * 10 + 0.5, '.', mew=0, color=pt['color'])
+
+    if labels is not None:
+        for i, label in enumerate(labels):
+            fv = label['fv']
+            f = label['f']
+            if label.get('special', False):
+                fv = label['fv2']
+                f = label['f2']
+            ax.text(fv * scale * 10 + 0.5, (1 - f) * scale * 10 + 0.5, label['signature'], color=label['color'],
+                    **cnfont)
+
+
+def plot_figure_hosp(bottom_right_heatmap, top_left_heatmap, heatmap_signature, key='', ax=None,
+                     add_title=True, pts=None, labels=None, cax2=None, prefix='', scen_id=''):
+    if ax is None:
+        return
+
+    font = matplotlib.font_manager.FontProperties(family='sans-serif', size=FONT_SIZE)
+    scale = int(np.round((1 / STEP) // 10))
+
+    df0 = pd.DataFrame(heatmap_signature)
+    df0 = df0.pivot(index='fv', columns='f', values='value').astype(float)
+    df0.sort_index(level=0, ascending=False, inplace=True)
+    np0 = df0.to_numpy()
+    z0 = np.zeros_like(np0, dtype=bool)
+    z0[:, :-1] = (np0[:, 1:] != np0[:, :-1])
+    z0[:-1, :] += (np0[1:, :] != np0[:-1, :])
+    df0[:] = z0
+
+    cmap1 = cm.get_cmap('cividis_r')
+
+    df = pd.DataFrame(bottom_right_heatmap)
+    df.to_csv(f'{prefix}_fig4_endemic_hosp_IV_{scen_id}.csv')
+
+    df = df.pivot(index='fv', columns='f', values='value').astype(float)
+
+    df.sort_index(level=0, ascending=False, inplace=True)
+    df0.columns = pd.Series([f'{float(c):.1f}' for c in list(df.columns)], name='f')
+    df0.index = pd.Series([f'{float(c):.1f}' for c in list(df.index)], name='fv')
+
+    sns.set(font_scale=1.0)
+    print(f'(H_1 + H_2) max value: {df.max().max()}')
+    # bottom-right picture
+    from matplotlib.colors import LogNorm
+
+    df_plus = df.copy() + 1e-8
+    vmin = 1 + 1e-8
+    vmax = 100 + 1e-8
+    sns.heatmap(df_plus, ax=ax, cmap=cmap1, square=True, xticklabels=scale,
+                norm=LogNorm(vmin=vmin, vmax=vmax), vmin=vmin, vmax=vmax,
+                yticklabels=scale, fmt='.1f', cbar=False, cbar_kws={'label': 'endemic state - I_V',
+                                                                    'orientation': 'vertical'})
+    if add_title:
+        ax.set_title(key, fontdict=fontdict)
+    decimals = [f'{i / 10:.1f}' for i in range(11)]
+    ticklabels = []
+    for decimal in decimals[:-1]:
+        ticklabels.extend([decimal] + [''] * 9)
+    ticklabels.extend([decimals[-1]])
+    # border between phases, bottom-right side
+    sns.heatmap(df0, ax=ax, mask=~z0, vmin=0, vmax=1, cmap='gray_r', square=True, xticklabels=scale, yticklabels=scale,
+                cbar=False)
+
+    ax.plot([10 * scale + 1, 0], [0, 10 * scale + 1], 'w--')
+    cnfont = {'fontname': 'Courier New', 'size': 8}
+
+    if pts is not None:
+        for i, pt in enumerate(pts):
+            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, 'k.', mew=.6)
+            ax.plot((pt['f']) * scale * 10 + 0.5, (1 - (pt['fv'])) * scale * 10 + 0.5, '.', mew=0, color=pt['color'])
+    if labels is not None:
+        for i, label in enumerate(labels):
+            ax.text((label['f']) * scale * 10 + 0.5, (1 - (label['fv'])) * scale * 10 + 0.5, label['signature'],
+                    color=label['color'], **cnfont)
+
+
+    df = pd.DataFrame(top_left_heatmap)
+    df.to_csv(f'{prefix}_fig4_endemic_hosp_I_{scen_id}.csv')
+    df = df.pivot(index='fv', columns='f', values='value').astype(float)
+
+    df.sort_index(level=0, ascending=False, inplace=True)
+    df[:] = np.flipud(np.tril(np.rot90(df.to_numpy(), k=3)))
+
+    df.columns = pd.Series([f'{float(c):.1f}' for c in list(df0.columns)], name='f/fv')
+    df.index = pd.Series([f'{float(c):.1f}' for c in list(df0.index)], name='fv/f')
+    # heatmap,  top-left side of the picture
+    print(f'(H_D) max value: {df.max().max()}')
+    df_plus = df.copy() + 1e-8
+    h = sns.heatmap(df_plus, cbar=False, ax=ax, mask=(df == 0), cmap=cmap1, square=True,
+                    norm=LogNorm(vmin=vmin, vmax=vmax),
+                    vmin=vmin, vmax=vmax,
+                    xticklabels=int(scale), yticklabels=int(scale), fmt='.1f', cbar_kws={
+            'label': 'endemic state - I',
+            'orientation': 'horizontal'})
+    cb = h.figure.colorbar(h.collections[0], cax=cax2,
+                           label='Hospitalizations in the endemic state',
+                           orientation='horizontal', extend='both', ticks=[vmin, 10 + 1e-8, vmax])
+    cb.ax.set_xticklabels([r'$\leq$' + '1/mln', '10/mln', r'$\geq$' + '100/mln'])
     cb.ax.tick_params(labelsize=FONT_SIZE, width=0.5, length=4, pad=2)  # Set the colorbar scale font size.
     text = cb.ax.xaxis.label
     text.set_font_properties(font)
@@ -1218,6 +1345,121 @@ def solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=0.
     return i, iv
 
 
+def heatmap_hosp_calc(d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=KAPPA, gamma=GAMMA):
+    h1_plus_h2 = []
+    hd = []
+    for f, fv in product(f_list, repeat=2):
+        _, _, _, h1_plus_h2_val, hd_val = solve_s1h_s2h_sdh(f=f, fv=fv, d=d, kappa=kappa, upsilon1=upsilon1,
+                                                            upsilon2=upsilon2, r_max=r_max, mixing_type=mixing_type,
+                                                            alpha=alpha, gamma=gamma)
+        h1_plus_h2.append(set_elem_heatmap(f, fv, h1_plus_h2_val * 1_000_000))
+        hd.append(set_elem_heatmap(f, fv, hd_val * 1_000_000))
+
+    return h1_plus_h2, hd
+
+
+def solve_s1h_s2h_sdh(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa=KAPPA, gamma=GAMMA):
+    omega_h = 0.001
+    omega = upsilon2
+    v_r = upsilon1
+    alpha_h = 0.7
+    theta = 0.03
+    tau_h = 1/17
+    i, i_v = solve_i_iv(f, fv, d, upsilon1, upsilon2, r_max, alpha, mixing_type, kappa, gamma)
+    beta = gamma * r_max * (1 - f)
+    delta = gamma * r_max * (1 - fv)
+    delta_star = delta
+    delta_plus = beta
+    if mixing_type == 'pref':
+        if beta == 0 and delta == 0:
+            delta_star = 0
+            delta_plus = 0
+        else:
+            delta_star = delta * delta / (beta * d + delta * (1 - d))
+            delta_plus = beta * beta / (beta * d + delta * (1 - d))
+
+    def s_d():
+        if beta == 0 and delta_plus == 0:
+            return 0
+        return gamma * i / (beta * i + delta_plus * i_v)
+
+    def r_d():
+        return d - s_d - i
+
+    def r_v():
+        return gamma / (kappa + upsilon1) * i_v
+
+    def kappa_rd():
+        return gamma * i
+
+    sd = s_d()
+    rv = r_v()
+
+    def s_v():
+        if beta == 0 and delta_star == 0:
+            return 0
+        return gamma * i_v / (beta * i + delta_star * i_v)
+
+    sv = s_v()
+
+    def s_2():
+        nominator = upsilon2 + beta * i + delta_star * i_v
+        denominator = upsilon1 * (1 - alpha) + upsilon2 + beta * i + delta_star * i_v
+        return sv * nominator / denominator
+
+    s2 = s_2()
+
+    def s_1():
+        return sv - s2
+
+    def s_dh():
+        # here one can also compute it as
+        # (omega_h * sd + (1 - alpha_h) * kappa * r_d()) / (beta * i + delta_star * i_v + omega_h)
+        return (omega_h * sd + (1 - alpha_h) * kappa_rd()) / (beta * i + delta_star * i_v + omega_h)
+
+    def v():
+        return 1 - d - gamma * i_v / (beta * i + delta_star * i_v) - i_v * (1 + gamma / (kappa + upsilon1))
+
+    def a():
+        return omega_h * s_1()
+
+    def b():
+        return v_r * (1 - alpha_h) * (1 - alpha)
+
+    def c():
+        return beta * i + delta_star * i_v + omega_h + omega
+
+    def d():
+        return (1 - alpha_h) * omega * v() + omega_h * s_2() + (1 - alpha_h) * kappa * rv
+
+    def e():
+        return omega
+
+    def f():
+        return beta * i + delta_star * i_v + omega_h + v_r
+
+    def s_2h():
+        return e() * a() / (c() * f() - e() * b())
+
+    s2h = s_2h()
+
+    def s_1h():
+        return (a() + b() * s2h) / c()
+
+    s1h = s_1h()
+    sdh = s_dh()
+
+    def solve_hospitalized(s_factor):
+        if beta == 0 and delta_star == 0:
+            return 0
+        return s_factor * theta / tau_h * (beta * i + delta_star * i_v)
+
+    h1_plus_h2 = solve_hospitalized(s1h + s2h)
+    hd = solve_hospitalized(sdh)
+
+    return s1h, s2h, sdh, h1_plus_h2, hd
+
+
 def fig3(scenarios, pts0=None, labels0=None, tab1_5 = True):
     fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
     h = [0.2, 5.7, 0.15] * 3 + [0.15]
@@ -1305,7 +1547,7 @@ def fig3(scenarios, pts0=None, labels0=None, tab1_5 = True):
         inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
         plot_figure4(bottom_right, top_left,
                      heatmap_signature, key=key, ax=inset_axes, add_title=True,
-                     pts=pts, labels=labels, cax2=cax2)
+                     pts=pts, labels=labels, cax2=cax2, scen_id=f'{letter}_{scen_}', prefix=prefix)
         letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
                        fontdict=fontdict)
 
@@ -1319,6 +1561,90 @@ def fig3(scenarios, pts0=None, labels0=None, tab1_5 = True):
         fig_variant = '_alpha_'
     fig.savefig('Fig' + fig_number + fig_variant + fname_addon + '.png', format='png')
     fig.savefig('Fig' + fig_number + fig_variant + fname_addon + '.pdf', format='pdf')
+
+
+def fig_hosp(scenarios, prefix=''):
+    fig = plt.figure(figsize=(18.3 * cms, 14.6 * cms), dpi=200)
+    h = [0.2, 5.7, 0.15] * 3 + [0.15]
+    v = ([0.2] + [0.6, 5.7, 0.2] * 2 + [0.1] + [0.4, 0.9])[::-1]
+    horiz = [Size.Fixed(h_ * cms) for h_ in h]
+    vert = [Size.Fixed(v_ * cms) for v_ in v]
+    rect = (0.0, 0.0, 1.0, 1.0)
+    # Divide the axes rectangle into a grid with sizes specified by horiz * vert.
+    divider = Divider(fig, rect, horiz, vert, aspect=False)
+    # The rect parameter will actually be ignored and overridden by axes_locator.
+    ax1 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=1, ny=len(v) - 1 - 2), frameon=False)
+    ax2 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=4, ny=len(v) - 1 - 2), frameon=False)
+    ax3 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=7, ny=len(v) - 1 - 2), frameon=False)
+    ax4 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=1, ny=len(v) - 1 - 5), frameon=False)
+    ax5 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=4, ny=len(v) - 1 - 5), frameon=False)
+    ax6 = fig.add_axes(rect, axes_locator=divider.new_locator(nx=7, ny=len(v) - 1 - 5), frameon=False)
+    cax2_o = fig.add_axes(rect, axes_locator=divider.new_locator(nx=4, ny=len(v) - 1 - 8), frameon=False)
+    axa = fig.add_axes(rect, axes_locator=divider.new_locator(nx=0, ny=len(v) - 1 - 1), frameon=False)
+    axb = fig.add_axes(rect, axes_locator=divider.new_locator(nx=3, ny=len(v) - 1 - 1), frameon=False)
+    axc = fig.add_axes(rect, axes_locator=divider.new_locator(nx=6, ny=len(v) - 1 - 1), frameon=False)
+    axd = fig.add_axes(rect, axes_locator=divider.new_locator(nx=0, ny=len(v) - 1 - 4), frameon=False)
+    axe = fig.add_axes(rect, axes_locator=divider.new_locator(nx=3, ny=len(v) - 1 - 4), frameon=False)
+    axf = fig.add_axes(rect, axes_locator=divider.new_locator(nx=6, ny=len(v) - 1 - 4), frameon=False)
+    cax2 = cax2_o  # mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(cax2_o, 0.8 / 0.01, loc='center')
+    caxs = [cax2_o]  # cax1_o, cax2_o, cax3_o]
+    axs = [ax1, ax2, ax3, ax4, ax5, ax6]
+    axletters = [axa, axb, axc, axd, axe, axf]
+    for iax in caxs + axs + axletters:
+        iax.set_yticks([]), iax.set_xticks([])
+
+    rc('font', **{'family': 'sans-serif', 'sans-serif': ['Arial'], 'size': FONT_SIZE})
+    matplotlib.rcParams.update({'font.size': FONT_SIZE})
+    for scenario, ax, letter_ax in zip(scenarios, axs, axletters):
+        (a, alpha, v1, v2, type_, R_max, scen_, letter) = scenario
+        data = generate_data(a, alpha, v1, v2)
+        heatmap_signature, _ = signature_calc(data, type_=type_, R_max=R_max, d=a, gamma=GAMMA)
+        bottom_right, top_left = heatmap_hosp_calc(d=a, upsilon1=v1, upsilon2=v2, r_max=R_max,
+                                                   alpha=alpha, gamma=GAMMA, kappa=KAPPA, mixing_type=type_)
+        pts = None
+        labels = None
+        if scen_ == '*':
+            #pts = pts0
+            #labels = labels0
+            key = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}, '
+            key += r'$\omega$' + f' = {v2}, ' + r'$d$' + f' = {a:.2f}'
+        else:
+            change = ''
+            if scen_ == 0:
+                change = r'$d$' + f' = {a:.2f}'
+            elif scen_ == 1:
+                change = r'$a$' + f' = {alpha:.2f}'
+            elif scen_ == 2:
+                change = r'$\upsilon$' + f' = {v1}'
+            elif scen_ == 3:
+                change = r'$\omega$' + f' = {v2}'
+            elif scen_ == 4:
+                change = 'pref mix'
+            elif scen_ == 5:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 11:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\upsilon$' + f' = {v1}'
+            elif scen_ == 12:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 13:
+                change = r'$a$' + f' = {alpha:.2f}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 14:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$d$' + f' = {a:.2f}'
+            elif scen_ == 15:
+                change = r'$\upsilon$' + f' = {v1}, ' + r'$\omega$' + f' = {v2}'
+            elif scen_ == 16:
+                change = r'$d$' + f' = {a:.2f}, ' + r'$\omega$' + f' = {v2}'
+            key = f'change to reference: {change}'
+        key = f'{key}'
+        scale = int(np.round((1 / STEP)))
+        inset_axes = mpl_toolkits.axes_grid1.inset_locator.zoomed_inset_axes(ax, 0.7 / scale, loc='center')
+        plot_figure_hosp(bottom_right, top_left,
+                         heatmap_signature, key=key, ax=inset_axes, add_title=True,
+                         pts=pts, labels=labels, cax2=cax2, prefix=prefix, scen_id=f'{letter}_{scen_}')
+        letter_ax.text(1, 0.9, letter, weight='bold', size=FONT_SIZE,
+                       fontdict=fontdict)
+    fig.savefig(f'{prefix}Fig_hosp.png', format='png')
+    fig.savefig(f'{prefix}Fig_hosp.pdf', format='pdf')
 
 
 if __name__ == "__main__":
@@ -1468,4 +1794,103 @@ if __name__ == "__main__":
         fig3(scenarios=scenarios_, pts0=pts_, labels0=labels_, tab1_5 = tab1_5)
         diff_time = time.time() - start_time 
         print("---- Fig. generated after %s minutes and %s seconds ----" % (diff_time // 60, round(diff_time % 60)) )
-        
+
+
+def old_main():
+    alpha_pfizer = 0.92
+    alpha_az = 0.73
+    denials_gb = 0.12
+    denials_fr = 0.3
+    waning_time1 = 1/500
+    waning_time2 = 1/200
+    omega1_low = 0.004
+    omega1_high = 0.008
+    R_0_alpha = 4
+    scenarios_alpha = [
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, '*', 'a'),
+        (denials_gb, alpha_az, omega1_low, waning_time1, 'prop', R_0_alpha, 1, 'b'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_alpha, 2, 'c'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time1, 'pref', R_0_alpha, 4, 'd'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time1, 'prop', R_0_alpha, 0, 'e'),
+        (denials_gb, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_alpha, 3, 'f')
+    ]
+    labels_alpha = None
+
+    pts_alpha = [
+        {'f': 0.92, 'fv': 0.04, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.63, 'fv': 0.05, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.45, 'fv': 0.32, 'signature': '+', 'color': 'red'},
+        {'f': 0.82, 'fv': 0.4, 'signature': '-', 'color': 'blue'},
+        {'f': 0.7, 'fv': 0.4, 'signature': '+-', 'color': 'deepskyblue'}
+    ]
+    # We don't need it now
+    pts_alpha = None
+
+    delta_pfizer = 0.79
+    delta_az = 0.6
+    R_0_delta = 6
+    scenarios_delta = [
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, '*', 'a'),
+        (denials_gb, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 1, 'b'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 2, 'c'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time1, 'pref', R_0_delta, 4, 'd'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time1, 'prop', R_0_delta, 0, 'e'),
+        (denials_gb, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 3, 'f')
+    ]
+    pts_delta_adjusted = [
+        {'f': 0.77, 'fv': 0.38, 'signature': '+', 'color': 'red'},
+        {'f': 0.77, 'fv': 0.55, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.92, 'fv': 0.38, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.77, 'fv': 0.71, 'signature': '+-', 'color': 'deepskyblue'},
+        {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
+
+    ]
+    labels_delta = [
+        {'f': 0.88, 'fv': 0.3, 'signature': '-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.88,
+         'fv2': 0.28},
+        {'f': 0.44, 'fv': 0.78, 'signature': '+-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.44},
+        {'f': 0.45, 'fv': 0.2, 'signature': '+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.52,
+         'fv2': 0.2},
+        {'f': 0.9, 'fv': 0.76, 'signature': '-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.92,
+         'fv2': 0.71},
+        {'f': 0.72, 'fv': 0.68, 'signature': '+-', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.78,
+         'fv2': 0.67}
+    ]
+
+    scenarios_delta_2 = [
+        (denials_gb, delta_az, omega1_high, waning_time1, 'prop', R_0_delta, 11, 'a'),
+        (denials_fr, delta_az, omega1_low, waning_time1, 'prop', R_0_delta, 12, 'b'),
+        (denials_gb, delta_az, omega1_low, waning_time2, 'prop', R_0_delta, 13, 'c'),
+        (denials_fr, delta_pfizer, omega1_high, waning_time1, 'prop', R_0_delta, 14, 'd'),
+        (denials_gb, delta_pfizer, omega1_high, waning_time2, 'prop', R_0_delta, 15, 'e'),
+        (denials_fr, delta_pfizer, omega1_low, waning_time2, 'prop', R_0_delta, 16, 'f')
+    ]
+    labels_delta_2 = None
+    pts_delta_adjusted_2 = None
+
+    scenarios_alpha_2 = [
+        (denials_gb, alpha_az, omega1_high, waning_time1, 'prop', R_0_alpha, 11, 'a'),
+        (denials_fr, alpha_az, omega1_low, waning_time1, 'prop', R_0_alpha, 12, 'b'),
+        (denials_gb, alpha_az, omega1_low, waning_time2, 'prop', R_0_alpha, 13, 'c'),
+        (denials_fr, alpha_pfizer, omega1_high, waning_time1, 'prop', R_0_alpha, 14, 'd'),
+        (denials_gb, alpha_pfizer, omega1_high, waning_time2, 'prop', R_0_alpha, 15, 'e'),
+        (denials_fr, alpha_pfizer, omega1_low, waning_time2, 'prop', R_0_alpha, 16, 'f')
+    ]
+    labels_alpha_2 = None
+    pts_alpha_2 = None
+
+    fig1(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+    fig1b(scenarios=scenarios_delta, pts=pts_delta_adjusted)
+
+    fig2(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta)
+    fig3(scenarios=scenarios_delta, pts0=pts_delta_adjusted, labels0=labels_delta)
+
+    fig2(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2)
+    fig3(scenarios=scenarios_delta_2, pts0=pts_delta_adjusted_2, labels0=labels_delta_2)
+
+    fig2(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2)
+    fig3(scenarios=scenarios_alpha_2, pts0=pts_alpha_2, labels0=labels_alpha_2)
+
+    fig2(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha)
+    fig3(scenarios=scenarios_alpha, pts0=pts_alpha, labels0=labels_alpha)

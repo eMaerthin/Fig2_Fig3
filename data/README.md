@@ -1,0 +1,280 @@
+References to all generated data can be found here.
+
+- Figure 1 c: Time evolution of the instantaneous reproduction number `R∗` (y axis) depending on the number of days counted from the start of the vaccination program (x axis), in five different scenarios describing the epidemic evolution.
+  - scenario +-+: [scenario_+-+__line_orange.csv](scenario_+-+__line_orange.csv)
+  - scenario +-: [scenario_+-__line_deepskyblue.csv](scenario_+-__line_deepskyblue.csv)
+  - scenario +: [scenario_+__line_red.csv](scenario_+__line_red.csv)
+  - scenario -+: [scenario_-+__line_violet.csv](scenario_-+__line_violet.csv)
+  - scenario -: [scenario_-__line_blue.csv](scenario_-__line_blue.csv)
+
+- Figure 2: Possible COVID-19 epidemic dynamics for different parameter setups for the Delta variant.
+  - panel a:
+    - asymptomatic R*: [delta1__fig2_asymptotic-R*_a_*.csv](delta1__fig2_asymptotic-R*_a_*.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_a_*.csv](delta1__fig2_days-until-overcritical_a_*.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_a_*.csv](delta1__fig2_days-until-subcritical_a_*.csv)
+  - panel b:
+    - asymptomatic R*:  [delta1__fig2_asymptotic-R*_b_1.csv](delta1__fig2_asymptotic-R*_b_1.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_b_1.csv](delta1__fig2_days-until-overcritical_b_1.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_b_1.csv](delta1__fig2_days-until-subcritical_b_1.csv)
+  - panel c:
+    - asymptomatic R*: [delta1__fig2_asymptotic-R*_c_2.csv](delta1__fig2_asymptotic-R*_c_2.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_c_2.csv](delta1__fig2_days-until-overcritical_c_2.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_c_2.csv](delta1__fig2_days-until-subcritical_c_2.csv)
+  - panel d:
+    - asymptomatic R*: [delta1__fig2_asymptotic-R*_d_4.csv](delta1__fig2_asymptotic-R*_d_4.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_d_4.csv](delta1__fig2_days-until-overcritical_d_4.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_d_4.csv](delta1__fig2_days-until-subcritical_d_4.csv)
+  - panel e:
+    - asymptomatic R*: [delta1__fig2_asymptotic-R*_e_0.csv](delta1__fig2_asymptotic-R*_e_0.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_e_0.csv](delta1__fig2_days-until-overcritical_e_0.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_e_0.csv](delta1__fig2_days-until-subcritical_e_0.csv)
+  - panel f:
+    - asymptomatic R*: [delta1__fig2_asymptotic-R*_f_3.csv](delta1__fig2_asymptotic-R*_f_3.csv)
+    - time until overcriticality: [delta1__fig2_days-until-overcritical_f_3.csv](delta1__fig2_days-until-overcritical_f_3.csv)
+    - time until subcriticality: [delta1__fig2_days-until-subcritical_f_3.csv](delta1__fig2_days-until-subcritical_f_3.csv)
+
+- Figure 3: Daily COVID-19 infection cases in the endemic state for different parameter setups and the Delta variant.
+  - panel a:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_a_*.csv](delta1__fig3_endemic_infs_I_a_*.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_a_*.csv](delta1__fig3_endemic_infs_IV_a_*.csv)
+  - panel b:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_b_1.csv](delta1__fig3_endemic_infs_I_b_1.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_b_1.csv](delta1__fig3_endemic_infs_IV_b_1.csv)
+  - panel c:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_c_2.csv](delta1__fig3_endemic_infs_I_c_2.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_c_2.csv](delta1__fig3_endemic_infs_IV_c_2.csv)
+  - panel d:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_d_4.csv](delta1__fig3_endemic_infs_I_d_4.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_d_4.csv](delta1__fig3_endemic_infs_IV_d_4.csv)
+  - panel e:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_e_0.csv](delta1__fig3_endemic_infs_I_e_0.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_e_0.csv](delta1__fig3_endemic_infs_IV_e_0.csv)
+  - panel f:
+    - endemic infections `I`: [delta1__fig3_endemic_infs_I_f_3.csv](delta1__fig3_endemic_infs_I_f_3.csv)
+    - endemic infections `I_V`: [delta1__fig3_endemic_infs_IV_f_3.csv](delta1__fig3_endemic_infs_IV_f_3.csv)
+
+- Figure 4: Daily COVID-19 hospitalized cases in the endemic state for different parameter setups and the Delta variant.
+  - panel a:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_a_*.csv](delta1__fig4_endemic_hosp_I_a_*.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_a_*.csv](delta1__fig4_endemic_hosp_IV_a_*.csv)
+  - panel b:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_b_1.csv](delta1__fig4_endemic_hosp_I_b_1.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_b_1.csv](delta1__fig4_endemic_hosp_IV_b_1.csv)
+  - panel c:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_c_2.csv](delta1__fig4_endemic_hosp_I_c_2.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_c_2.csv](delta1__fig4_endemic_hosp_IV_c_2.csv)
+  - panel d:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_d_4.csv](delta1__fig4_endemic_hosp_I_d_4.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_d_4.csv](delta1__fig4_endemic_hosp_IV_d_4.csv)
+  - panel e:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_e_0.csv](delta1__fig4_endemic_hosp_I_e_0.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_e_0.csv](delta1__fig4_endemic_hosp_IV_e_0.csv)
+  - panel f:
+    - endemic hospitalizations `I`: [delta1__fig4_endemic_hosp_I_f_3.csv](delta1__fig4_endemic_hosp_I_f_3.csv)
+    - endemic hospitalizations `I_V`: [delta1__fig4_endemic_hosp_IV_f_3.csv](delta1__fig4_endemic_hosp_IV_f_3.csv)
+
+- Supplementary Figure S1:Instantaneous doubling times for the examples of five scenarios for the Delta variant, depending on the restrictions for VP holders and for the rest of the population.
+  - scenario +-+: [scenario_+-+__line_orange_doubling_time.csv](scenario_+-+__line_orange_doubling_time.csv)
+  - scenario +-: [scenario_+-__line_deepskyblue_doubling_time.csv](scenario_+-__line_deepskyblue_doubling_time.csv)
+  - scenario +: [scenario_+__line_red_doubling_time.csv](scenario_+__line_red_doubling_time.csv)
+  - scenario -+: [scenario_-+__line_violet_doubling_time.csv](scenario_-+__line_violet_doubling_time.csv)
+
+- Supplementary Figure S2:Possible COVID-19 epidemic dynamics for different parameter setups for the Alpha variant.
+  - panel a:
+    - asymptomatic R*: [alpha1__fig2_asymptotic-R*_a_*.csv](alpha1__fig2_asymptotic-R*_a_*.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_a_*.csv](alpha1__fig2_days-until-overcritical_a_*.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_a_*.csv](alpha1__fig2_days-until-subcritical_a_*.csv)
+  - panel b:
+    - asymptomatic R*:  [alpha1__fig2_asymptotic-R*_b_1.csv](alpha1__fig2_asymptotic-R*_b_1.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_b_1.csv](alpha1__fig2_days-until-overcritical_b_1.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_b_1.csv](alpha1__fig2_days-until-subcritical_b_1.csv)
+  - panel c:
+    - asymptomatic R*:  [alpha1__fig2_asymptotic-R*_c_2.csv](alpha1__fig2_asymptotic-R*_c_2.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_c_2.csv](alpha1__fig2_days-until-overcritical_c_2.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_c_2.csv](alpha1__fig2_days-until-subcritical_c_2.csv)
+  - panel d:
+    - asymptomatic R*:  [alpha1__fig2_asymptotic-R*_d_4.csv](alpha1__fig2_asymptotic-R*_d_4.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_d_4.csv](alpha1__fig2_days-until-overcritical_d_4.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_d_4.csv](alpha1__fig2_days-until-subcritical_d_4.csv)
+  - panel e:
+    - asymptomatic R*:  [alpha1__fig2_asymptotic-R*_e_0.csv](alpha1__fig2_asymptotic-R*_e_0.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_e_0.csv](alpha1__fig2_days-until-overcritical_e_0.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_e_0.csv](alpha1__fig2_days-until-subcritical_e_0.csv)
+  - panel f:
+    - asymptomatic R*:  [alpha1__fig2_asymptotic-R*_f_3.csv](alpha1__fig2_asymptotic-R*_f_3.csv)
+    - time until overcriticality: [alpha1__fig2_days-until-overcritical_f_3.csv](alpha1__fig2_days-until-overcritical_f_3.csv)
+    - time until subcriticality: [alpha1__fig2_days-until-subcritical_f_3.csv](alpha1__fig2_days-until-subcritical_f_3.csv)
+
+- Supplementary Figure S3:Possible COVID-19 epidemic dynamics for parameter setups with two changes w.r.t. the reference setup, for the Delta variant (changes as in main text Table 1, rows 6-11)
+  - panel a:
+    - asymptomatic R*: [delta2__fig2_asymptotic-R*_a_11.csv](delta2__fig2_asymptotic-R*_a_11.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_a_11.csv](delta2__fig2_days-until-overcritical_a_11.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_a_11.csv](delta2__fig2_days-until-subcritical_a_11.csv)
+  - panel b:
+    - asymptomatic R*:  [delta2__fig2_asymptotic-R*_b_12.csv](delta2__fig2_asymptotic-R*_b_12.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_b_12.csv](delta2__fig2_days-until-overcritical_b_12.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_b_12.csv](delta2__fig2_days-until-subcritical_b_12.csv)
+  - panel c:
+    - asymptomatic R*:  [delta2__fig2_asymptotic-R*_c_13.csv](delta2__fig2_asymptotic-R*_c_13.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_c_13.csv](delta2__fig2_days-until-overcritical_c_13.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_c_13.csv](delta2__fig2_days-until-subcritical_c_13.csv)
+  - panel d:
+    - asymptomatic R*:  [delta2__fig2_asymptotic-R*_d_14.csv](delta2__fig2_asymptotic-R*_d_14.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_d_14.csv](delta2__fig2_days-until-overcritical_d_14.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_d_14.csv](delta2__fig2_days-until-subcritical_d_14.csv)
+  - panel e:
+    - asymptomatic R*:  [delta2__fig2_asymptotic-R*_e_15.csv](delta2__fig2_asymptotic-R*_e_15.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_e_15.csv](delta2__fig2_days-until-overcritical_e_15.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_e_15.csv](delta2__fig2_days-until-subcritical_e_15.csv)
+  - panel f:
+    - asymptomatic R*:  [delta2__fig2_asymptotic-R*_f_16.csv](delta2__fig2_asymptotic-R*_f_16.csv)
+    - time until overcriticality: [delta2__fig2_days-until-overcritical_f_16.csv](delta2__fig2_days-until-overcritical_f_16.csv)
+    - time until subcriticality: [delta2__fig2_days-until-subcritical_f_16.csv](delta2__fig2_days-until-subcritical_f_16.csv)
+
+- Supplementary Figure S4:Possible COVID-19 epidemic dynamics for parameter setups with two changes w.r.t. the reference setup, for the Alpha variant
+  - panel a:
+    - asymptomatic R*: [alpha2__fig2_asymptotic-R*_a_11.csv](alpha2__fig2_asymptotic-R*_a_11.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_a_11.csv](alpha2__fig2_days-until-overcritical_a_11.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_a_11.csv](alpha2__fig2_days-until-subcritical_a_11.csv)
+  - panel b:
+    - asymptomatic R*:  [alpha2__fig2_asymptotic-R*_b_12.csv](alpha2__fig2_asymptotic-R*_b_12.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_b_12.csv](alpha2__fig2_days-until-overcritical_b_12.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_b_12.csv](alpha2__fig2_days-until-subcritical_b_12.csv)
+  - panel c:
+    - asymptomatic R*:  [alpha2__fig2_asymptotic-R*_c_13.csv](alpha2__fig2_asymptotic-R*_c_13.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_c_13.csv](alpha2__fig2_days-until-overcritical_c_13.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_c_13.csv](alpha2__fig2_days-until-subcritical_c_13.csv)
+  - panel d:
+    - asymptomatic R*:  [alpha2__fig2_asymptotic-R*_d_14.csv](alpha2__fig2_asymptotic-R*_d_14.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_d_14.csv](alpha2__fig2_days-until-overcritical_d_14.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_d_14.csv](alpha2__fig2_days-until-subcritical_d_14.csv)
+  - panel e:
+    - asymptomatic R*:  [alpha2__fig2_asymptotic-R*_e_15.csv](alpha2__fig2_asymptotic-R*_e_15.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_e_15.csv](alpha2__fig2_days-until-overcritical_e_15.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_e_15.csv](alpha2__fig2_days-until-subcritical_e_15.csv)
+  - panel f:
+    - asymptomatic R*:  [alpha2__fig2_asymptotic-R*_f_16.csv](alpha2__fig2_asymptotic-R*_f_16.csv)
+    - time until overcriticality: [alpha2__fig2_days-until-overcritical_f_16.csv](alpha2__fig2_days-until-overcritical_f_16.csv)
+    - time until subcriticality: [alpha2__fig2_days-until-subcritical_f_16.csv](alpha2__fig2_days-until-subcritical_f_16.csv)
+
+
+- Supplementary Figure S5:Daily COVID-19 infection cases in the endemic state, for the Alpha variant.
+  - panel a:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_a_*.csv](alpha1__fig3_endemic_infs_I_a_*.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_a_*.csv](alpha1__fig3_endemic_infs_IV_a_*.csv)
+  - panel b:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_b_1.csv](alpha1__fig3_endemic_infs_I_b_1.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_b_1.csv](alpha1__fig3_endemic_infs_IV_b_1.csv)
+  - panel c:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_c_2.csv](alpha1__fig3_endemic_infs_I_c_2.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_c_2.csv](alpha1__fig3_endemic_infs_IV_c_2.csv)
+  - panel d:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_d_4.csv](alpha1__fig3_endemic_infs_I_d_4.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_d_4.csv](alpha1__fig3_endemic_infs_IV_d_4.csv)
+  - panel e:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_e_0.csv](alpha1__fig3_endemic_infs_I_e_0.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_e_0.csv](alpha1__fig3_endemic_infs_IV_e_0.csv)
+  - panel f:
+    - endemic infections `I`: [alpha1__fig3_endemic_infs_I_f_3.csv](alpha1__fig3_endemic_infs_I_f_3.csv)
+    - endemic infections `I_V`: [alpha1__fig3_endemic_infs_IV_f_3.csv](alpha1__fig3_endemic_infs_IV_f_3.csv)
+
+- Supplementary Figure S6: Daily COVID-19 infection cases in the endemic state for parameter setups with two changes w.r.t. the reference setup, and the Delta variant.
+  - panel a:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_a_11.csv](delta2__fig3_endemic_infs_I_a_11.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_a_11.csv](delta2__fig3_endemic_infs_IV_a_11.csv)
+  - panel b:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_b_12.csv](delta2__fig3_endemic_infs_I_b_12.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_b_12.csv](delta2__fig3_endemic_infs_IV_b_12.csv)
+  - panel c:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_c_13.csv](delta2__fig3_endemic_infs_I_c_13.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_c_13.csv](delta2__fig3_endemic_infs_IV_c_13.csv)
+  - panel d:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_d_14.csv](delta2__fig3_endemic_infs_I_d_14.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_d_14.csv](delta2__fig3_endemic_infs_IV_d_14.csv)
+  - panel e:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_e_15.csv](delta2__fig3_endemic_infs_I_e_15.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_e_15.csv](delta2__fig3_endemic_infs_IV_e_15.csv)
+  - panel f:
+    - endemic infections `I`: [delta2__fig3_endemic_infs_I_f_16.csv](delta2__fig3_endemic_infs_I_f_16.csv)
+    - endemic infections `I_V`: [delta2__fig3_endemic_infs_IV_f_16.csv](delta2__fig3_endemic_infs_IV_f_16.csv)
+
+- Supplementary Figure S7:Daily COVID-19 infection cases in the endemic state, for parameter setups with two changes w.r.t. the reference setup, for the Alpha variant.
+  - panel a:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_a_11.csv](alpha2__fig3_endemic_infs_I_a_11.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_a_11.csv](alpha2__fig3_endemic_infs_IV_a_11.csv)
+  - panel b:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_b_12.csv](alpha2__fig3_endemic_infs_I_b_12.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_b_12.csv](alpha2__fig3_endemic_infs_IV_b_12.csv)
+  - panel c:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_c_13.csv](alpha2__fig3_endemic_infs_I_c_13.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_c_13.csv](alpha2__fig3_endemic_infs_IV_c_13.csv)
+  - panel d:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_d_14.csv](alpha2__fig3_endemic_infs_I_d_14.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_d_14.csv](alpha2__fig3_endemic_infs_IV_d_14.csv)
+  - panel e:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_e_15.csv](alpha2__fig3_endemic_infs_I_e_15.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_e_15.csv](alpha2__fig3_endemic_infs_IV_e_15.csv)
+  - panel f:
+    - endemic infections `I`: [alpha2__fig3_endemic_infs_I_f_16.csv](alpha2__fig3_endemic_infs_I_f_16.csv)
+    - endemic infections `I_V`: [alpha2__fig3_endemic_infs_IV_f_16.csv](alpha2__fig3_endemic_infs_IV_f_16.csv)
+
+- Supplementary Figure S8:Daily COVID-19 hospitalized cases in the endemic state for different parameter setups and the Alpha variant.
+ - panel a:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_a_*.csv](alpha1__fig4_endemic_hosp_I_a_*.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_a_*.csv](alpha1__fig4_endemic_hosp_IV_a_*.csv)
+  - panel b:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_b_1.csv](alpha1__fig4_endemic_hosp_I_b_1.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_b_1.csv](alpha1__fig4_endemic_hosp_IV_b_1.csv)
+  - panel c:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_c_2.csv](alpha1__fig4_endemic_hosp_I_c_2.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_c_2.csv](alpha1__fig4_endemic_hosp_IV_c_2.csv)
+  - panel d:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_d_4.csv](alpha1__fig4_endemic_hosp_I_d_4.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_d_4.csv](alpha1__fig4_endemic_hosp_IV_d_4.csv)
+  - panel e:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_e_0.csv](alpha1__fig4_endemic_hosp_I_e_0.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_e_0.csv](alpha1__fig4_endemic_hosp_IV_e_0.csv)
+  - panel f:
+    - endemic hospitalizations `I`: [alpha1__fig4_endemic_hosp_I_f_3.csv](alpha1__fig4_endemic_hosp_I_f_3.csv)
+    - endemic hospitalizations `I_V`: [alpha1__fig4_endemic_hosp_IV_f_3.csv](alpha1__fig4_endemic_hosp_IV_f_3.csv)
+
+- Supplementary Figure S9:Daily COVID-19 hospitalized cases in the endemic state for parameter setups with two changes w.r.t. the reference setup, and the Delta variant.
+  - panel a:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_a_11.csv](delta2__fig4_endemic_hosp_I_a_11.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_a_11.csv](delta2__fig4_endemic_hosp_IV_a_11.csv)
+  - panel b:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_b_12.csv](delta2__fig4_endemic_hosp_I_b_12.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_b_12.csv](delta2__fig4_endemic_hosp_IV_b_12.csv)
+  - panel c:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_c_13.csv](delta2__fig4_endemic_hosp_I_c_13.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_c_13.csv](delta2__fig4_endemic_hosp_IV_c_13.csv)
+  - panel d:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_d_14.csv](delta2__fig4_endemic_hosp_I_d_14.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_d_14.csv](delta2__fig4_endemic_hosp_IV_d_14.csv)
+  - panel e:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_e_15.csv](delta2__fig4_endemic_hosp_I_e_15.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_e_15.csv](delta2__fig4_endemic_hosp_IV_e_15.csv)
+  - panel f:
+    - endemic hospitalizations `I`: [delta2__fig4_endemic_hosp_I_f_16.csv](delta2__fig4_endemic_hosp_I_f_16.csv)
+    - endemic hospitalizations `I_V`: [delta2__fig4_endemic_hosp_IV_f_16.csv](delta2__fig4_endemic_hosp_IV_f_16.csv)
+
+
+- Supplementary Figure S10:Daily COVID-19 hospitalized cases in the endemic state for parameter setups with two changes w.r.t. the reference setup, and the Alpha variant.
+  - panel a:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_a_11.csv](alpha2__fig4_endemic_hosp_I_a_11.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_a_11.csv](alpha2__fig4_endemic_hosp_IV_a_11.csv)
+  - panel b:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_b_12.csv](alpha2__fig4_endemic_hosp_I_b_12.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_b_12.csv](alpha2__fig4_endemic_hosp_IV_b_12.csv)
+  - panel c:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_c_13.csv](alpha2__fig4_endemic_hosp_I_c_13.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_c_13.csv](alpha2__fig4_endemic_hosp_IV_c_13.csv)
+  - panel d:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_d_14.csv](alpha2__fig4_endemic_hosp_I_d_14.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_d_14.csv](alpha2__fig4_endemic_hosp_IV_d_14.csv)
+  - panel e:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_e_15.csv](alpha2__fig4_endemic_hosp_I_e_15.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_e_15.csv](alpha2__fig4_endemic_hosp_IV_e_15.csv)
+  - panel f:
+    - endemic hospitalizations `I`: [alpha2__fig4_endemic_hosp_I_f_16.csv](alpha2__fig4_endemic_hosp_I_f_16.csv)
+    - endemic hospitalizations `I_V`: [alpha2__fig4_endemic_hosp_IV_f_16.csv](alpha2__fig4_endemic_hosp_IV_f_16.csv)
