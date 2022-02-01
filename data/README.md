@@ -1,3 +1,5 @@
+# Data
+
 References to all generated data can be found here.
 
 - Figure 1 c: Time evolution of the instantaneous reproduction number `R∗` (y axis) depending on the number of days counted from the start of the vaccination program (x axis), in five different scenarios describing the epidemic evolution.

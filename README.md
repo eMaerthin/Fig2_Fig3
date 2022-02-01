@@ -1,8 +1,7 @@
-# Fig2_Fig3
+# VAP SIRS Analysis
 
 This repository contains code to generate three figures from the paper
-Krueger et al "Risk of COVID-19 epidemic resurgence with the introduction of vaccination passes".
-
+Krueger et al "Risk assessment of COVID-19 epidemic resurgence in relation to SARS-CoV-2 variants and vaccination passes".
 ## Prerequisities
 
 - Python 3
@@ -14,9 +13,8 @@ Krueger et al "Risk of COVID-19 epidemic resurgence with the introduction of vac
 - `pip install -r requirements.txt`
 
 Now all should be ready to run `python main.py`. It takes a moment to generate Fig 1b,
-around 90 minutes to generate Fig 2, and about 6 hours to generate Fig 3:
-![fig2](Fig1b.png "Fig1b")
+around 90 minutes to generate Fig 2, and about 6 hours to generate Fig 3 or Fig 4.
 
-![fig3](Fig2.png "Fig2")
-
-![fig4](Fig3.png "Fig3")
+## Data Availability
+All the data used for figures generation is provided within the [data](data) directory. 
+See [data readme](data/README.md) for further details.
