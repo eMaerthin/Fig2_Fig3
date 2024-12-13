@@ -1845,6 +1845,14 @@ def old_main():
         {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
 
     ]
+    pts_delta_adjusted = [
+        {'f': 0.77, 'fv': 0.38, 'signature': '+', 'color': 'red'},
+        {'f': 0.77, 'fv': 0.55, 'signature': '+-+', 'color': 'orange'},
+        {'f': 0.92, 'fv': 0.38, 'signature': '-+', 'color': 'violet'},
+        {'f': 0.77, 'fv': 0.71, 'signature': '+-', 'color': 'deepskyblue'},
+        {'f': 0.92, 'fv': 0.71, 'signature': '-', 'color': 'blue'},
+
+    ]
     labels_delta = [
         {'f': 0.88, 'fv': 0.3, 'signature': '-+', 'color': 'black', 'size': 6, 'special': True, 'f2': 0.88,
          'fv2': 0.28},
